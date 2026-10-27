@@ -37,8 +37,7 @@ credentials, counter storage, and spending assumptions.
 steps. The approved policy limits are **$5/day and $50/month** in USD reservations;
 the checked-in policy starts disabled. Publishing this branch does not deploy it.
 
-The inactive CI template in `ops/verify.workflow.yml` runs Flutter regression
-tests and a web build, backend/emulator tests, dependency auditing, and a non-root
-container build check. GitHub rejected activating it because the saved credential
-lacks the `workflow` scope. After authorization, place it at
-`.github/workflows/verify.yml`. It never receives production keys.
+GitHub Actions runs Flutter regression tests and a release web build, backend
+and shared-counter concurrency tests against an isolated Firestore emulator,
+a dependency vulnerability check, and a non-root container build check.
+The workflow never receives production keys.

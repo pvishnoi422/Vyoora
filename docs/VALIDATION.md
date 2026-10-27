@@ -19,11 +19,11 @@ Local checks on October 27, 2026:
   provider keys. None were found. No source `.env` or local credential file was
   imported. The earlier public upstream history was not rewritten.
 
-The prepared CI template additionally tests Python 3.11 and the non-root Docker
-image. It is inactive pending GitHub workflow authorization.
+The GitHub workflow additionally tests Python 3.11 and the non-root Docker image.
 Local backend tests used an isolated Python 3.13 environment because the Mac's
 system Python installation was damaged. No local Docker executable was present.
-No hosted CI result is claimed until the workflow is authorized and run.
+CI results must be checked on the final pushed commit. GitHub workflow access was
+authorized through the browser before enabling these checks.
 
 No production deployment, live paid AI request, signed native app build, key
 rotation, Firestore provisioning, or Secret Manager migration was performed by
