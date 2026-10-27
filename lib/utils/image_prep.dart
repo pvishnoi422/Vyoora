@@ -22,8 +22,8 @@ Future<Uint8List> preprocessForOCR(Uint8List bytes) async {
   if (w > maxSide || h > maxSide) {
     resized = img.copyResize(
       oriented,
-      width:  w >= h ? maxSide : (w * maxSide ~/ h),
-      height: h > w  ? maxSide : (h * maxSide ~/ w),
+      width: w >= h ? maxSide : (w * maxSide ~/ h),
+      height: h > w ? maxSide : (h * maxSide ~/ w),
     );
   }
 

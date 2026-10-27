@@ -15,10 +15,10 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell>
     with SingleTickerProviderStateMixin {
-  int _index    = 0;
+  int _index = 0;
   int _prevIndex = 0;
   late AnimationController _transCtrl;
-  late Animation<double>   _transAnim;
+  late Animation<double> _transAnim;
 
   final _screens = const [
     UploadScreen(),
@@ -31,9 +31,13 @@ class _HomeShellState extends State<HomeShell>
   void initState() {
     super.initState();
     _transCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 280));
-    _transAnim =
-        CurvedAnimation(parent: _transCtrl, curve: Curves.easeOutCubic);
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _transAnim = CurvedAnimation(
+      parent: _transCtrl,
+      curve: Curves.easeOutCubic,
+    );
     _transCtrl.value = 1.0;
   }
 
@@ -81,10 +85,38 @@ class _HomeShellState extends State<HomeShell>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _NavItem(icon: Icons.home_outlined,       activeIcon: Icons.home,        label: 'Home',     index: 0, current: _index, onTap: _switchTab),
-                _NavItem(icon: Icons.history_outlined,    activeIcon: Icons.history,     label: 'History',  index: 1, current: _index, onTap: _switchTab),
-                _NavItem(icon: Icons.chat_bubble_outline, activeIcon: Icons.chat_bubble, label: 'Ask Lumi', index: 2, current: _index, onTap: _switchTab),
-                _NavItem(icon: Icons.person_outline,      activeIcon: Icons.person,      label: 'Profile',  index: 3, current: _index, onTap: _switchTab),
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home,
+                  label: 'Home',
+                  index: 0,
+                  current: _index,
+                  onTap: _switchTab,
+                ),
+                _NavItem(
+                  icon: Icons.history_outlined,
+                  activeIcon: Icons.history,
+                  label: 'History',
+                  index: 1,
+                  current: _index,
+                  onTap: _switchTab,
+                ),
+                _NavItem(
+                  icon: Icons.chat_bubble_outline,
+                  activeIcon: Icons.chat_bubble,
+                  label: 'Ask Lumi',
+                  index: 2,
+                  current: _index,
+                  onTap: _switchTab,
+                ),
+                _NavItem(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: 'Profile',
+                  index: 3,
+                  current: _index,
+                  onTap: _switchTab,
+                ),
               ],
             ),
           ),
@@ -97,9 +129,9 @@ class _HomeShellState extends State<HomeShell>
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final IconData activeIcon;
-  final String   label;
-  final int      index;
-  final int      current;
+  final String label;
+  final int index;
+  final int current;
   final void Function(int) onTap;
 
   const _NavItem({

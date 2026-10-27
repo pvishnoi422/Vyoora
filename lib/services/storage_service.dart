@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static const _keySkipOnboarding = 'skip_onboarding';
-  static const _keyScanHistory    = 'scan_history';
+  static const _keyScanHistory = 'scan_history';
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   static Future<bool> shouldShowOnboarding() async {
@@ -20,7 +20,7 @@ class StorageService {
   // ── Scan History ─────────────────────────────────────────────────────────
   static Future<List<ScanRecord>> getScanHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getStringList(_keyScanHistory) ?? [];
+    final raw = prefs.getStringList(_keyScanHistory) ?? [];
     return raw
         .map((s) => ScanRecord.fromJson(jsonDecode(s)))
         .toList()
@@ -29,7 +29,7 @@ class StorageService {
   }
 
   static Future<void> addScan(ScanRecord record) async {
-    final prefs   = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     final history = prefs.getStringList(_keyScanHistory) ?? [];
     history.add(jsonEncode(record.toJson()));
     // Keep only last 5
@@ -47,9 +47,9 @@ class StorageService {
 
 class ScanRecord {
   final String date;
-  final int    score;
-  final int    ingredientCount;
-  final int    concernCount;
+  final int score;
+  final int ingredientCount;
+  final int concernCount;
   final String summary;
   final Map<String, dynamic> fullResult;
 
@@ -63,20 +63,20 @@ class ScanRecord {
   });
 
   factory ScanRecord.fromJson(Map<String, dynamic> j) => ScanRecord(
-        date:            j['date'] ?? '',
-        score:           j['score'] ?? 0,
-        ingredientCount: j['ingredientCount'] ?? 0,
-        concernCount:    j['concernCount'] ?? 0,
-        summary:         j['summary'] ?? '',
-        fullResult:      Map<String, dynamic>.from(j['fullResult'] ?? {}),
-      );
+    date: j['date'] ?? '',
+    score: j['score'] ?? 0,
+    ingredientCount: j['ingredientCount'] ?? 0,
+    concernCount: j['concernCount'] ?? 0,
+    summary: j['summary'] ?? '',
+    fullResult: Map<String, dynamic>.from(j['fullResult'] ?? {}),
+  );
 
   Map<String, dynamic> toJson() => {
-        'date':            date,
-        'score':           score,
-        'ingredientCount': ingredientCount,
-        'concernCount':    concernCount,
-        'summary':         summary,
-        'fullResult':      fullResult,
-      };
+    'date': date,
+    'score': score,
+    'ingredientCount': ingredientCount,
+    'concernCount': concernCount,
+    'summary': summary,
+    'fullResult': fullResult,
+  };
 }

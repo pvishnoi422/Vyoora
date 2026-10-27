@@ -42,8 +42,9 @@ class VyooraScaffold extends StatelessWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-              height: 1,
-              color: const Color(0xFFD4AF37).withOpacity(0.1)),
+            height: 1,
+            color: const Color(0xFFD4AF37).withOpacity(0.1),
+          ),
         ),
       ),
       body: content,

@@ -15,31 +15,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   final PageController _pageCtrl = PageController();
   late AnimationController _fadeCtrl;
-  late Animation<double>   _fade;
-  int  _page          = 0;
+  late Animation<double> _fade;
+  int _page = 0;
   bool _dontShowAgain = false;
 
   static const _pages = [
     _PageData(
-      icon:     Icons.document_scanner_outlined,
-      title:    'Know What\'s Really In Your Skincare',
-      subtitle: 'Point your camera at any skincare label and instantly see what you\'re putting on your skin.',
+      icon: Icons.document_scanner_outlined,
+      title: 'Know What\'s Really In Your Skincare',
+      subtitle:
+          'Point your camera at any skincare label and instantly see what you\'re putting on your skin.',
     ),
     _PageData(
-      icon:     Icons.science_outlined,
-      title:    'Avoid Ingredients That Don\'t Work For You',
-      subtitle: 'Every flagged ingredient is backed by peer-reviewed research. Not opinions. Evidence.',
+      icon: Icons.science_outlined,
+      title: 'Avoid Ingredients That Don\'t Work For You',
+      subtitle:
+          'Every flagged ingredient is backed by peer-reviewed research. Not opinions. Evidence.',
     ),
     _PageData(
-      icon:     Icons.auto_awesome,
-      title:    'Get Instant Answers From Your Personal Skin Advisor',
-      subtitle: 'Ask anything about your routine, your skin type, or specific ingredients.',
+      icon: Icons.auto_awesome,
+      title: 'Get Instant Answers From Your Personal Skin Advisor',
+      subtitle:
+          'Ask anything about your routine, your skin type, or specific ingredients.',
     ),
     _PageData(
-      icon:     Icons.gavel_outlined,
-      title:    'A note before you start',
+      icon: Icons.gavel_outlined,
+      title: 'A note before you start',
       subtitle: '',
-      isLegal:  true,
+      isLegal: true,
     ),
   ];
 
@@ -47,7 +50,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void initState() {
     super.initState();
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _fade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
   }
@@ -62,8 +67,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _next() async {
     if (_page < _pages.length - 1) {
       _pageCtrl.nextPage(
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeInOut);
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
     } else {
       if (_dontShowAgain) {
         await StorageService.setSkipOnboarding(true);
@@ -108,10 +114,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             Navigator.pushReplacementNamed(context, '/home');
                           }
                         },
-                        child: Text('Skip',
-                            style: GoogleFonts.cinzel(
-                                color: Colors.white.withOpacity(0.82),
-                                fontSize: 15)),
+                        child: Text(
+                          'Skip',
+                          style: GoogleFonts.cinzel(
+                            color: Colors.white.withOpacity(0.82),
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -119,26 +128,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
                 // Decorative line
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
-                          child: Container(
-                              height: 1,
-                              color: const Color(0xFFD4AF37).withOpacity(0.15))),
+                        child: Container(
+                          height: 1,
+                          color: const Color(0xFFD4AF37).withOpacity(0.15),
+                        ),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text('✦',
-                            style: GoogleFonts.cinzel(
-                                color: const Color(0xFFD4AF37).withOpacity(0.4),
-                                fontSize: 12)),
+                        child: Text(
+                          '✦',
+                          style: GoogleFonts.cinzel(
+                            color: const Color(0xFFD4AF37).withOpacity(0.4),
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                       Expanded(
-                          child: Container(
-                              height: 1,
-                              color:
-                                  const Color(0xFFD4AF37).withOpacity(0.15))),
+                        child: Container(
+                          height: 1,
+                          color: const Color(0xFFD4AF37).withOpacity(0.15),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -179,8 +196,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: _dontShowAgain
-                                ? const Icon(Icons.check,
-                                    size: 14, color: Color(0xFF080808))
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 14,
+                                    color: Color(0xFF080808),
+                                  )
                                 : null,
                           ),
                           const SizedBox(width: 10),
@@ -235,7 +255,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             color: const Color(0xFFD4AF37).withOpacity(0.28),
                             blurRadius: 20,
                             offset: const Offset(0, 6),
-                          )
+                          ),
                         ],
                       ),
                       child: Center(
@@ -277,17 +297,24 @@ class _LegalPage extends StatelessWidget {
               color: const Color(0xFF0E0E0E),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                  color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                color: const Color(0xFFD4AF37).withOpacity(0.3),
+              ),
             ),
-            child: const Icon(Icons.gavel_outlined,
-                size: 30, color: Color(0xFFD4AF37)),
+            child: const Icon(
+              Icons.gavel_outlined,
+              size: 30,
+              color: Color(0xFFD4AF37),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             '✦  Trusted by skincare enthusiasts and ingredient-conscious shoppers  ✦',
             style: TextStyle(
               color: const Color(0xFFD4AF37).withOpacity(0.5),
-              fontSize: 12, letterSpacing: 0.5, height: 1.5),
+              fontSize: 12,
+              letterSpacing: 0.5,
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -308,7 +335,8 @@ class _LegalPage extends StatelessWidget {
               color: const Color(0xFF0F0F0F),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: const Color(0xFFD4AF37).withOpacity(0.15)),
+                color: const Color(0xFFD4AF37).withOpacity(0.15),
+              ),
             ),
             child: Text(
               'Data & Privacy\n\n'
@@ -355,7 +383,8 @@ class _OnboardPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: const Color(0xFFD4AF37).withOpacity(0.08)),
+                    color: const Color(0xFFD4AF37).withOpacity(0.08),
+                  ),
                 ),
               ),
               Container(
@@ -365,16 +394,21 @@ class _OnboardPage extends StatelessWidget {
                   color: const Color(0xFF0E0E0E),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                      color: const Color(0xFFD4AF37).withOpacity(0.25)),
+                    color: const Color(0xFFD4AF37).withOpacity(0.25),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                        color: const Color(0xFFD4AF37).withOpacity(0.1),
-                        blurRadius: 30,
-                        spreadRadius: 2)
+                      color: const Color(0xFFD4AF37).withOpacity(0.1),
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                    ),
                   ],
                 ),
-                child:
-                    Icon(data.icon, size: 44, color: const Color(0xFFD4AF37)),
+                child: Icon(
+                  data.icon,
+                  size: 44,
+                  color: const Color(0xFFD4AF37),
+                ),
               ),
             ],
           ),
@@ -404,10 +438,11 @@ class _OnboardPage extends StatelessWidget {
           Text(
             data.subtitle,
             style: GoogleFonts.cinzel(
-                color: Colors.white.withOpacity(0.75),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                height: 1.7),
+              color: Colors.white.withOpacity(0.75),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              height: 1.7,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -416,20 +451,20 @@ class _OnboardPage extends StatelessWidget {
   }
 
   Widget _dot(double opacity) => Container(
-        width: 5,
-        height: 5,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFFD4AF37).withOpacity(opacity),
-        ),
-      );
+    width: 5,
+    height: 5,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: const Color(0xFFD4AF37).withOpacity(opacity),
+    ),
+  );
 }
 
 class _PageData {
   final IconData icon;
-  final String   title;
-  final String   subtitle;
-  final bool     isLegal;
+  final String title;
+  final String subtitle;
+  final bool isLegal;
   const _PageData({
     required this.icon,
     required this.title,

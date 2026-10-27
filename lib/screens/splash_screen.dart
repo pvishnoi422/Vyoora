@@ -14,27 +14,33 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   static const _letters = ['V', 'Y', 'O', 'O', 'R', 'A'];
   final List<AnimationController> _letterCtrls = [];
-  final List<Animation<double>>   _letterFades = [];
+  final List<Animation<double>> _letterFades = [];
   late AnimationController _glowCtrl;
-  late Animation<double>   _glow;
+  late Animation<double> _glow;
   late AnimationController _fadeOutCtrl;
-  late Animation<double>   _fadeOut;
+  late Animation<double> _fadeOut;
 
   @override
   void initState() {
     super.initState();
 
     _glowCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
     _glow = CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut);
 
     _fadeOutCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
     _fadeOut = CurvedAnimation(parent: _fadeOutCtrl, curve: Curves.easeIn);
 
     for (int i = 0; i < _letters.length; i++) {
       final ctrl = AnimationController(
-          vsync: this, duration: const Duration(milliseconds: 380));
+        vsync: this,
+        duration: const Duration(milliseconds: 380),
+      );
       _letterCtrls.add(ctrl);
       _letterFades.add(CurvedAnimation(parent: ctrl, curve: Curves.easeOut));
     }
@@ -64,7 +70,9 @@ class _SplashScreenState extends State<SplashScreen>
     final showOnboarding = await StorageService.shouldShowOnboarding();
     if (!mounted) return;
     Navigator.pushReplacementNamed(
-        context, showOnboarding ? '/onboarding' : '/home');
+      context,
+      showOnboarding ? '/onboarding' : '/home',
+    );
   }
 
   @override
@@ -110,12 +118,14 @@ class _SplashScreenState extends State<SplashScreen>
                         fontSize: 52,
                         fontWeight: FontWeight.w300,
                         letterSpacing: 12,
-                        color: const Color(0xFFD4AF37)
-                            .withOpacity(0.85 + 0.15 * _glow.value),
+                        color: const Color(
+                          0xFFD4AF37,
+                        ).withOpacity(0.85 + 0.15 * _glow.value),
                         shadows: [
                           Shadow(
-                            color: const Color(0xFFD4AF37)
-                                .withOpacity(0.5 * _glow.value),
+                            color: const Color(
+                              0xFFD4AF37,
+                            ).withOpacity(0.5 * _glow.value),
                             blurRadius: 32,
                           ),
                         ],

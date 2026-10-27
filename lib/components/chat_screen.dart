@@ -18,9 +18,9 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
-  final ScrollController      _scroll     = ScrollController();
-  final List<_Msg>            _messages   = [];
-  bool    _sending = false;
+  final ScrollController _scroll = ScrollController();
+  final List<_Msg> _messages = [];
+  bool _sending = false;
   String? _error;
 
   @override
@@ -49,7 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _messages.add(_Msg(role: 'user', text: text));
       _sending = true;
-      _error   = null;
+      _error = null;
     });
     _controller.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
@@ -60,40 +60,56 @@ class _ChatScreenState extends State<ChatScreen> {
           .post(
             uri,
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'message': text,
-              'history': historySnapshot,
-            }),
+            body: jsonEncode({'message': text, 'history': historySnapshot}),
           )
           .timeout(const Duration(seconds: 30));
 
       if (res.statusCode == 200) {
-        final data  = jsonDecode(res.body) as Map<String, dynamic>;
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
         final reply = (data['reply'] ?? '').toString();
         final rawSources = data['sources'] as List<dynamic>? ?? [];
         final sources = rawSources
-            .map((s) => {'label': s['label'].toString(), 'url': s['url'].toString()})
+            .map(
+              (s) => {
+                'label': s['label'].toString(),
+                'url': s['url'].toString(),
+              },
+            )
             .toList();
         if (mounted) {
           setState(() {
-            _messages.add(_Msg(role: 'assistant', text: reply, animate: true, sources: sources));
+            _messages.add(
+              _Msg(
+                role: 'assistant',
+                text: reply,
+                animate: true,
+                sources: sources,
+              ),
+            );
             _sending = false;
           });
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => _scrollToEnd());
+          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
         }
       } else {
         if (mounted) {
           setState(() {
-            _error   = 'Server error ${res.statusCode}';
+            _error = 'Server error ${res.statusCode}';
             _sending = false;
           });
         }
       }
     } on TimeoutException {
-      if (mounted) setState(() { _error = 'Request timed out.'; _sending = false; });
+      if (mounted)
+        setState(() {
+          _error = 'Request timed out.';
+          _sending = false;
+        });
     } catch (e) {
-      if (mounted) setState(() { _error = 'Network error: $e'; _sending = false; });
+      if (mounted)
+        setState(() {
+          _error = 'Network error: $e';
+          _sending = false;
+        });
     }
   }
 
@@ -111,24 +127,34 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF111111),
-        title: Text('Clear conversation?',
-            style: GoogleFonts.cookie(
-                color: Colors.white, fontSize: 22)),
-        content: Text('This will delete all messages.',
-            style:
-                TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16)),
+        title: Text(
+          'Clear conversation?',
+          style: GoogleFonts.cookie(color: Colors.white, fontSize: 22),
+        ),
+        content: Text(
+          'This will delete all messages.',
+          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel',
-                  style: TextStyle(color: Color(0xFF555555)))),
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF555555)),
+            ),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              setState(() { _messages.clear(); _error = null; });
+              setState(() {
+                _messages.clear();
+                _error = null;
+              });
             },
-            child: const Text('Clear',
-                style: TextStyle(color: Color(0xFFE07070))),
+            child: const Text(
+              'Clear',
+              style: TextStyle(color: Color(0xFFE07070)),
+            ),
           ),
         ],
       ),
@@ -168,16 +194,20 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           if (_messages.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  color: Color(0xFF444444), size: 20),
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Color(0xFF444444),
+                size: 20,
+              ),
               onPressed: _clearChat,
             ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-              height: 1,
-              color: const Color(0xFFD4AF37).withOpacity(0.1)),
+            height: 1,
+            color: const Color(0xFFD4AF37).withOpacity(0.1),
+          ),
         ),
       ),
       body: ParticleBg(
@@ -195,31 +225,33 @@ class _ChatScreenState extends State<ChatScreen> {
                           return Align(
                             alignment: Alignment.centerLeft,
                             child: Container(
-                              margin:
-                                  const EdgeInsets.symmetric(vertical: 5),
+                              margin: const EdgeInsets.symmetric(vertical: 5),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF111111),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                    color: const Color(0xFF222222)),
+                                  color: const Color(0xFF222222),
+                                ),
                               ),
                               child: _TypingDots(),
                             ),
                           );
                         }
 
-                        final m      = _messages[i];
+                        final m = _messages[i];
                         final isUser = m.role == 'user';
 
                         // Parse follow-up suggestion if present
-                        String mainText   = m.text;
+                        String mainText = m.text;
                         String? followUpDisplay;
                         String? followUpSend;
                         if (!isUser && m.text.contains('|||')) {
                           final parts = m.text.split('|||');
-                          mainText  = parts[0].trim();
+                          mainText = parts[0].trim();
                           final rawFollowUp = parts[1].trim();
                           if (rawFollowUp.contains('^^^')) {
                             final fparts = rawFollowUp.split('^^^');
@@ -234,7 +266,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         Widget content;
                         if (!isUser && m.animate && !m.done) {
                           content = TypewriterText(
-                            text:  mainText,
+                            text: mainText,
                             speed: const Duration(milliseconds: 10),
                             style: GoogleFonts.cinzel(
                               fontSize: 16,
@@ -270,14 +302,14 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ? Alignment.centerRight
                                   : Alignment.centerLeft,
                               child: Container(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 5),
+                                margin: const EdgeInsets.symmetric(vertical: 5),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 11),
+                                  horizontal: 14,
+                                  vertical: 11,
+                                ),
                                 constraints: BoxConstraints(
                                   maxWidth:
-                                      MediaQuery.of(context).size.width *
-                                          0.8,
+                                      MediaQuery.of(context).size.width * 0.8,
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
@@ -296,16 +328,17 @@ class _ChatScreenState extends State<ChatScreen> {
                                   border: isUser
                                       ? null
                                       : Border.all(
-                                          color:
-                                              const Color(0xFF222222)),
+                                          color: const Color(0xFF222222),
+                                        ),
                                   boxShadow: isUser
                                       ? [
                                           BoxShadow(
-                                            color: const Color(0xFFD4AF37)
-                                                .withOpacity(0.2),
+                                            color: const Color(
+                                              0xFFD4AF37,
+                                            ).withOpacity(0.2),
                                             blurRadius: 12,
                                             offset: const Offset(0, 4),
-                                          )
+                                          ),
                                         ]
                                       : [],
                                 ),
@@ -316,37 +349,66 @@ class _ChatScreenState extends State<ChatScreen> {
                             // Source chips
                             if (!isUser && m.done && m.sources.isNotEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(left: 4, bottom: 4, top: 2),
+                                padding: const EdgeInsets.only(
+                                  left: 4,
+                                  bottom: 4,
+                                  top: 2,
+                                ),
                                 child: Wrap(
                                   spacing: 6,
                                   runSpacing: 6,
-                                  children: m.sources.map((s) => GestureDetector(
-                                    onTap: () async {
-                                      final uri = Uri.parse(s['url']!);
-                                      if (await canLaunchUrl(uri)) {
-                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF111111),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.open_in_new, size: 10, color: Color(0xFFD4AF37)),
-                                          const SizedBox(width: 4),
-                                          Text(s['label']!, style: GoogleFonts.cinzel(
-                                            color: const Color(0xFFD4AF37),
-                                            fontSize: 11,
-                                          )),
-                                        ],
-                                      ),
-                                    ),
-                                  )).toList(),
+                                  children: m.sources
+                                      .map(
+                                        (s) => GestureDetector(
+                                          onTap: () async {
+                                            final uri = Uri.parse(s['url']!);
+                                            if (await canLaunchUrl(uri)) {
+                                              await launchUrl(
+                                                uri,
+                                                mode: LaunchMode
+                                                    .externalApplication,
+                                              );
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF111111),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: const Color(
+                                                  0xFFD4AF37,
+                                                ).withOpacity(0.3),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.open_in_new,
+                                                  size: 10,
+                                                  color: Color(0xFFD4AF37),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  s['label']!,
+                                                  style: GoogleFonts.cinzel(
+                                                    color: const Color(
+                                                      0xFFD4AF37,
+                                                    ),
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
                                 ),
                               ),
 
@@ -354,27 +416,35 @@ class _ChatScreenState extends State<ChatScreen> {
                             if (!isUser && m.done && followUpDisplay != null)
                               Padding(
                                 padding: const EdgeInsets.only(
-                                    left: 4, bottom: 6),
+                                  left: 4,
+                                  bottom: 6,
+                                ),
                                 child: GestureDetector(
                                   onTap: () => _send(followUpSend),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF9B59D4)
-                                          .withOpacity(0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(20),
+                                      color: const Color(
+                                        0xFF9B59D4,
+                                      ).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                          color: const Color(0xFF9B59D4)
-                                              .withOpacity(0.3)),
+                                        color: const Color(
+                                          0xFF9B59D4,
+                                        ).withOpacity(0.3),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.auto_awesome,
-                                            size: 13,
-                                            color: Color(0xFF9B59D4)),
+                                        const Icon(
+                                          Icons.auto_awesome,
+                                          size: 13,
+                                          color: Color(0xFF9B59D4),
+                                        ),
                                         const SizedBox(width: 6),
                                         Flexible(
                                           child: Text(
@@ -401,16 +471,27 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 16, color: Color(0xFFE07070)),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: Color(0xFFE07070),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
-                        child: Text(_error!,
-                            style: const TextStyle(
-                                color: Color(0xFFE07070), fontSize: 14))),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: Color(0xFFE07070),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                     IconButton(
-                      icon: const Icon(Icons.close,
-                          size: 14, color: Color(0xFFE07070)),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 14,
+                        color: Color(0xFFE07070),
+                      ),
                       onPressed: () => setState(() => _error = null),
                     ),
                   ],
@@ -425,8 +506,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF080808),
                   border: Border(
-                      top: BorderSide(
-                          color: const Color(0xFFD4AF37).withOpacity(0.08))),
+                    top: BorderSide(
+                      color: const Color(0xFFD4AF37).withOpacity(0.08),
+                    ),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -435,8 +518,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF111111),
                           borderRadius: BorderRadius.circular(14),
-                          border:
-                              Border.all(color: const Color(0xFF222222)),
+                          border: Border.all(color: const Color(0xFF222222)),
                         ),
                         child: TextField(
                           controller: _controller,
@@ -444,15 +526,20 @@ class _ChatScreenState extends State<ChatScreen> {
                           maxLines: 5,
                           maxLength: 2000,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 16),
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Ask Lumi anything…',
                             hintStyle: GoogleFonts.cinzel(
-                                color: Colors.white.withOpacity(0.2),
-                                fontSize: 16),
+                              color: Colors.white.withOpacity(0.2),
+                              fontSize: 16,
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
                             counterText: '',
                           ),
                           onSubmitted: (_) => _send(),
@@ -475,23 +562,30 @@ class _ChatScreenState extends State<ChatScreen> {
                               ? []
                               : [
                                   BoxShadow(
-                                    color: const Color(0xFFD4AF37)
-                                        .withOpacity(0.3),
+                                    color: const Color(
+                                      0xFFD4AF37,
+                                    ).withOpacity(0.3),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
-                                  )
+                                  ),
                                 ],
                         ),
                         child: _sending
                             ? const Center(
                                 child: SizedBox(
-                                  width: 18, height: 18,
+                                  width: 18,
+                                  height: 18,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFF555555)),
-                                ))
-                            : const Icon(Icons.arrow_upward_rounded,
-                                color: Color(0xFF080808), size: 20),
+                                    strokeWidth: 2,
+                                    color: Color(0xFF555555),
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.arrow_upward_rounded,
+                                color: Color(0xFF080808),
+                                size: 20,
+                              ),
                       ),
                     ),
                   ],
@@ -519,12 +613,16 @@ class _TypingDotsState extends State<_TypingDots>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -535,11 +633,12 @@ class _TypingDotsState extends State<_TypingDots>
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
             final offset = ((_ctrl.value * 3 - i) % 3) / 3;
-            final opacity =
-                (offset < 0.5 ? offset * 2 : (1 - offset) * 2).clamp(0.2, 1.0);
+            final opacity = (offset < 0.5 ? offset * 2 : (1 - offset) * 2)
+                .clamp(0.2, 1.0);
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
-              width: 6, height: 6,
+              width: 6,
+              height: 6,
               decoration: BoxDecoration(
                 color: const Color(0xFFD4AF37).withOpacity(opacity),
                 borderRadius: BorderRadius.circular(3),
@@ -573,20 +672,26 @@ class _EmptyChat extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 60, height: 60,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 color: const Color(0xFF111111),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                    color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                  color: const Color(0xFFD4AF37).withOpacity(0.3),
+                ),
                 boxShadow: [
                   BoxShadow(
-                      color: const Color(0xFFD4AF37).withOpacity(0.1),
-                      blurRadius: 20)
+                    color: const Color(0xFFD4AF37).withOpacity(0.1),
+                    blurRadius: 20,
+                  ),
                 ],
               ),
-              child: const Icon(Icons.auto_awesome,
-                  color: Color(0xFFD4AF37), size: 26),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: Color(0xFFD4AF37),
+                size: 26,
+              ),
             ),
             const SizedBox(height: 18),
             Text(
@@ -602,32 +707,40 @@ class _EmptyChat extends StatelessWidget {
             Text(
               'Ingredient questions, routine advice, product safety.',
               style: GoogleFonts.cinzel(
-                  color: Colors.white.withOpacity(0.3),
-                  fontSize: 15,
-                  height: 1.5),
+                color: Colors.white.withOpacity(0.3),
+                fontSize: 15,
+                height: 1.5,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ..._suggestions.map((s) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
-                    onTap: () => onPrompt(s),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF111111),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF1E1E1E)),
+            ..._suggestions.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () => onPrompt(s),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111111),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF1E1E1E)),
+                    ),
+                    child: Text(
+                      s,
+                      style: GoogleFonts.cinzel(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 15,
                       ),
-                      child: Text(s,
-                          style: GoogleFonts.cinzel(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 15)),
                     ),
                   ),
-                )),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -638,10 +751,16 @@ class _EmptyChat extends StatelessWidget {
 class _Msg {
   final String role;
   final String text;
-  final bool   animate;
+  final bool animate;
   final List<Map<String, String>> sources;
-  bool         done;
-  _Msg({required this.role, required this.text, this.animate = false, this.done = false, this.sources = const []});
+  bool done;
+  _Msg({
+    required this.role,
+    required this.text,
+    this.animate = false,
+    this.done = false,
+    this.sources = const [],
+  });
 }
 
 // ── Markdown text renderer ────────────────────────────────────────────────────
@@ -664,7 +783,8 @@ class _MarkdownText extends StatelessWidget {
       // Numbered list
       final numMatch = RegExp(r'^\d+\. ').firstMatch(line);
       if (numMatch != null) {
-        line = '${numMatch.group(0)!.replaceFirst(RegExp(r'\d+'), '  ${numMatch.group(0)!.trim().replaceAll('.', '')}')}'
+        line =
+            '${numMatch.group(0)!.replaceFirst(RegExp(r'\d+'), '  ${numMatch.group(0)!.trim().replaceAll('.', '')}')}'
             '${line.substring(numMatch.end)}';
       }
       // Parse bold/italic inline
@@ -682,18 +802,30 @@ class _MarkdownText extends StatelessWidget {
         spans.add(TextSpan(text: text.substring(last, m.start), style: base));
       }
       if (m.group(1) != null) {
-        spans.add(TextSpan(text: m.group(1), style: base.copyWith(fontWeight: FontWeight.bold)));
-      } else if (m.group(2) != null) {
-        spans.add(TextSpan(text: m.group(2), style: base.copyWith(fontStyle: FontStyle.italic)));
-      } else if (m.group(3) != null) {
-        spans.add(TextSpan(
-          text: m.group(3),
-          style: base.copyWith(
-            fontFamily: 'monospace',
-            backgroundColor: const Color(0xFF1E1E1E),
-            color: const Color(0xFFD4AF37),
+        spans.add(
+          TextSpan(
+            text: m.group(1),
+            style: base.copyWith(fontWeight: FontWeight.bold),
           ),
-        ));
+        );
+      } else if (m.group(2) != null) {
+        spans.add(
+          TextSpan(
+            text: m.group(2),
+            style: base.copyWith(fontStyle: FontStyle.italic),
+          ),
+        );
+      } else if (m.group(3) != null) {
+        spans.add(
+          TextSpan(
+            text: m.group(3),
+            style: base.copyWith(
+              fontFamily: 'monospace',
+              backgroundColor: const Color(0xFF1E1E1E),
+              color: const Color(0xFFD4AF37),
+            ),
+          ),
+        );
       }
       last = m.end;
     }
@@ -710,8 +842,6 @@ class _MarkdownText extends StatelessWidget {
       color: isUser ? const Color(0xFF080808) : Colors.white.withOpacity(0.8),
       height: 1.7,
     );
-    return SelectableText.rich(
-      TextSpan(children: _parse(text, base)),
-    );
+    return SelectableText.rich(TextSpan(children: _parse(text, base)));
   }
 }

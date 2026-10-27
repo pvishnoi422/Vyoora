@@ -37,9 +37,7 @@ class _ScanZoneState extends State<ScanZone>
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0D),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withOpacity(0.25),
-        ),
+        border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.25)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -83,8 +81,11 @@ class _ScanZoneState extends State<ScanZone>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.add_a_photo_outlined,
-                    size: 40, color: Color(0xFF333333)),
+                const Icon(
+                  Icons.add_a_photo_outlined,
+                  size: 40,
+                  color: Color(0xFF333333),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'Tap to scan a label',
@@ -97,8 +98,7 @@ class _ScanZoneState extends State<ScanZone>
                 SizedBox(height: 4),
                 Text(
                   'Camera or photo library',
-                  style:
-                      TextStyle(color: Color(0xFF333333), fontSize: 12),
+                  style: TextStyle(color: Color(0xFF333333), fontSize: 12),
                 ),
               ],
             ),
