@@ -18,4 +18,4 @@ COPY . /app
 RUN python runtime_bootstrap.py || true
 
 EXPOSE 8080
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "app:app"]

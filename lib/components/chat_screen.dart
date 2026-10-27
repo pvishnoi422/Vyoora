@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../widgets/typewriter_text.dart';
 
+
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -53,7 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final uri = Uri.parse('${apiBase()}/chat');
+      final uri = Uri.parse('$apiBase/chat');
       final res = await http
           .post(
             uri,

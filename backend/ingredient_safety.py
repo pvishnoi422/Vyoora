@@ -1,32 +1,45 @@
 import json
+import openai
 import os
+from dotenv import load_dotenv
 
-# Load the safety dataset once
-with open('ingredient_safety_dataset.json', 'r') as f:
+# Load your OpenAI API key
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Load ingredient safety data
+with open('ingredient_safety_dataset.json') as f:
     safety_data = json.load(f)
 
-def analyze_ingredient_safety(ingredient_list, skin_type='normal'):
-    results = []
+# Fallback to GPT if not found
+def gpt_guess_safety(ingredient):
+    try:
+        prompt = f"What is the skincare safety classification of '{ingredient}'? (Safe, Irritant, Comedogenic, or Unknown)"
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        content = response['choices'][0]['message']['content'].lower()
+        if 'safe' in content:
+            return 'Safe'
+        elif 'irritant' in content:
+            return 'Irritant'
+        elif 'comedogenic' in content:
+            return 'Comedogenic'
+        else:
+            return 'Unknown'
+    except Exception as e:
+        print(f"⚠️ GPT fallback error for '{ingredient}':", str(e))
+        return "Unknown"
 
-    for ing in ingredient_list:
-        ing_lower = ing.lower()
-        matched = False
-
-        for key, entry in safety_data.items():
-            if key.lower() in ing_lower:
-                matched = True
-                results.append({
-                    "ingredient": ing,
-                    "safety": entry.get("overall_safety", "Unknown"),
-                    "skin_type_note": entry.get("skin_type_specific", {}).get(skin_type, "Unknown")
-                })
-                break
-
-        if not matched:
-            results.append({
-                "ingredient": ing,
-                "safety": "Unknown",
-                "skin_type_note": "Unknown"
-            })
-
-    return results
+# Main safety function
+def analyze_ingredient_safety(ingredients):
+    result = {}
+    for ingredient in ingredients:
+        label = safety_data.get(ingredient.lower())
+        if label:
+            result[ingredient] = label
+        else:
+            result[ingredient] = gpt_guess_safety(ingredient)
+    return result
