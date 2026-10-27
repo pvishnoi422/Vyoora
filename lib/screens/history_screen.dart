@@ -111,9 +111,18 @@ class _HistoryScreenState extends State<HistoryScreen>
                 backgroundColor: const Color(0xFF111111),
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                  itemCount: _history.length,
+                  itemCount: _history.length + 1,
                   itemBuilder: (_, i) {
-                    final r = _history[i];
+                    if (i == 0) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'Only completed analyses appear here. Older scans may need to be analyzed again.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+                    final r = _history[i - 1];
                     return GestureDetector(
                       onTap: () => Navigator.push(
                         context,
@@ -275,7 +284,7 @@ class _EmptyHistory extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your last 5 scans will appear here.',
+            'Your last 5 completed scans will appear here. Older scans may need to be analyzed again.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.3),
               fontSize: 16,

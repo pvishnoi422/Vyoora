@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 
 import 'config.dart';
+import 'models/analysis_outcome.dart';
 import 'result_screen.dart';
 import 'services/storage_service.dart';
 import 'widgets/preview_image.dart';
@@ -198,27 +199,29 @@ class _UploadScreenState extends State<UploadScreen> {
       // Send product type to backend
       req.fields['product_type'] = _productType;
 
-      final streamed = await req.send().timeout(const Duration(seconds: 50));
-      final res = await http.Response.fromStream(streamed);
-
-      if (res.statusCode == 429) throw Exception('Too many requests.');
-      if (res.statusCode != 200)
-        throw Exception('Server error ${res.statusCode}');
-
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final count = (data['ingredient_count'] as int?) ?? 0;
-      final summary = (data['summary'] as String?) ?? '';
-
-      if (count == 0 ||
-          summary.toLowerCase().contains('no ingredients list found')) {
+      final res = await (() async {
+        final streamed = await req.send();
+        return http.Response.fromStream(streamed);
+      })().timeout(const Duration(seconds: 55));
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Invalid analysis response');
+      }
+      final data = decoded;
+      if (res.statusCode != 200) {
         _stopStatusCycle();
-        if (!mounted) return;
-        setState(
-          () => _error =
-              "We couldn't find an ingredients list in this photo.\n\nTry a clearer, closer shot of the full ingredient list with good lighting.",
-        );
+        if (mounted)
+          setState(() => _error = analysisRequestError(res.statusCode, data));
         return;
       }
+      final outcome = AnalysisOutcome.fromJson(data);
+      if (!outcome.isSuccess) {
+        _stopStatusCycle();
+        if (mounted) setState(() => _error = outcome.message);
+        return;
+      }
+      final count = data['ingredient_count'] as int;
+      final summary = data['summary'] as String;
 
       final concerns = (data['concerns'] as List<dynamic>?) ?? [];
       final score =
@@ -259,9 +262,9 @@ class _UploadScreenState extends State<UploadScreen> {
       _stopStatusCycle();
       if (!mounted) return;
       setState(
-        () => _error = e.toString().contains('timeout')
-            ? 'Analysis timed out. Try a clearer photo.'
-            : 'Analysis failed: $e',
+        () => _error = e is TimeoutException
+            ? 'Analysis timed out. No ingredient assessment is available. Please try again.'
+            : 'Analysis could not be completed. No ingredient assessment is available. Please try again.',
       );
     } finally {
       if (mounted) setState(() => _isUploading = false);

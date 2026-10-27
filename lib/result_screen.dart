@@ -1,5 +1,6 @@
 // lib/result_screen.dart
 import 'dart:math';
+import 'models/analysis_outcome.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -93,6 +94,30 @@ class _ResultScreenState extends State<ResultScreen>
 
   @override
   Widget build(BuildContext context) {
+    final outcome = AnalysisOutcome.fromJson(widget.result);
+    if (!outcome.isSuccess) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Analysis unavailable')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.info_outline, size: 40),
+                const SizedBox(height: 16),
+                Text(outcome.message, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => Navigator.maybePop(context),
+                  child: const Text('Go back and retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final summary = (widget.result['summary'] as String? ?? '');
     final count = (widget.result['ingredient_count'] as int? ?? 0);
     final scoreLabel = (widget.result['score_label'] as String? ?? '');
@@ -659,7 +684,7 @@ class _ResultScreenState extends State<ResultScreen>
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'No notable concerns detected in this formula.',
+                              'No concerns were flagged in the ingredients read. This does not establish product safety.',
                               style: GoogleFonts.cookie(
                                 color: const Color(0xFF4CAF50),
                                 fontSize: 19,

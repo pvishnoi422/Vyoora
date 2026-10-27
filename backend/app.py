@@ -1,60 +1,22 @@
-# backend/app.py — Vyoora v10
-import os, json, hashlib, time, base64
+# Maintained Vyoora backend. See docs/SECURITY.md for the result contract.
+import os, json, base64, io, warnings, ipaddress
 from typing import List, Dict, Any
 from urllib.parse import quote_plus
-from collections import OrderedDict
+from PIL import Image, ImageOps, UnidentifiedImageError
 
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
-from openai import OpenAI
-
-print("🔧 Starting Vyoora backend v10...")
-
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-oai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=40.0) if OPENAI_API_KEY else None
+from provider import complete
+from safety import ServiceError
+from contracts import validate_model_result
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False,
-     methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
-
-print("✅ Vyoora v10 ready")
-
-# ── Rate limiting ─────────────────────────────────────────────────────────────
-_rate_buckets: Dict[str, list] = {}
-
-def _check_rate(ip: str, endpoint: str, max_calls: int, window: int = 60) -> bool:
-    key  = f"{ip}:{endpoint}"
-    now  = time.time()
-    hits = [t for t in _rate_buckets.get(key, []) if now - t < window]
-    if len(hits) >= max_calls:
-        _rate_buckets[key] = hits
-        return False
-    hits.append(now)
-    _rate_buckets[key] = hits
-    return True
-
-def _ip() -> str:
-    return request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
-
-# ── Cache ─────────────────────────────────────────────────────────────────────
-AI_CACHE: "OrderedDict[str, dict]" = OrderedDict()
-
-def _ck(image_b64: str, product_type: str) -> str:
-    return hashlib.sha1(f"{product_type}:{image_b64}".encode()).hexdigest()
-
-def _cget(k):
-    v = AI_CACHE.get(k)
-    if v: AI_CACHE.move_to_end(k)
-    return v
-
-def _cput(k, v):
-    AI_CACHE[k] = v
-    AI_CACHE.move_to_end(k)
-    if len(AI_CACHE) > 300:
-        AI_CACHE.popitem(last=False)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+origins = [x.strip() for x in os.environ.get("CORS_ORIGINS", "").split(",") if x.strip()]
+if origins:
+    CORS(app, resources={r"/*": {"origins": origins}}, supports_credentials=False,
+         methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
+Image.MAX_IMAGE_PIXELS = 20_000_000
 
 # ── EU Restricted / Banned ingredients (partial list of highest-risk) ─────────
 EU_RESTRICTED = {
@@ -166,15 +128,7 @@ def build_links_for(ingredient: str, refs: List[str]) -> List[Dict[str, str]]:
     return [{"source": r, "url": REFERENCE_LINKS[r](ingredient)} for r in refs if r in REFERENCE_LINKS]
 
 # ── Core Vision Analysis ──────────────────────────────────────────────────────
-def analyse_image(image_b64: str, media_type: str = "image/jpeg", product_type: str = "unknown") -> Dict[str, Any]:
-    ck = _ck(image_b64, product_type)
-    cached = _cget(ck)
-    if cached:
-        return cached
-
-    if not (oai_client and OPENAI_API_KEY):
-        return {"summary": "AI unavailable.", "concerns": [], "sources": [], "ingredient_count": 0}
-
+def analyse_image(image_b64: str, media_type: str = "image/jpeg", product_type: str = "unknown", actor: str = "unknown") -> Dict[str, Any]:
     product_context = f"The user has indicated this is a {product_type}. " if product_type and product_type != "unknown" else ""
     is_rinse_off_hint = ""
     rinse_off_types = ["cleanser", "shampoo", "conditioner", "body wash", "face wash"]
@@ -246,25 +200,17 @@ Critical rules:
 - All analysis is informed by: EU CosIng (https://ec.europa.eu/growth/tools-databases/cosing), CIR (https://cir-safety.org), PubMed (https://pubmed.ncbi.nlm.nih.gov), EWG Skin Deep (https://www.ewg.org/skindeep)"""
 
     try:
-        resp = oai_client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0,
-            max_tokens=2200,
-            messages=[
+        raw = complete("upload", actor, [
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_b64}", "detail": "auto"}},
+                        {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_b64}", "detail": "high"}},
                         {"type": "text", "text": "Please read and analyse the ingredients list from this cosmetic product label."}
                     ]
                 }
-            ],
-            response_format={"type": "json_object"},
-        )
-
-        raw  = resp.choices[0].message.content
-        data = json.loads(raw) if isinstance(raw, str) else raw
+            ])
+        data = validate_model_result(json.loads(raw))
 
         ingredients       = [str(x).strip() for x in (data.get("ingredients") or []) if str(x).strip()]
         all_ingredients   = [str(x).strip() for x in (data.get("all_ingredients") or data.get("ingredients") or []) if str(x).strip()]
@@ -317,7 +263,7 @@ Critical rules:
                 })
 
         # Smart severity-weighted score
-        smart_score = compute_smart_score(concerns_out, len(ingredients), product_type_out)
+        smart_score = compute_smart_score(concerns_out, len(all_ingredients), product_type_out)
 
         # Rebuild score rationale negatives with EU flags
         if score_rationale.get("negatives"):
@@ -330,6 +276,8 @@ Critical rules:
                     break
 
         result = {
+            "status": "success",
+            "analysis_complete": True,
             "summary":           summary,
             "brand":             brand,
             "product_name":      product_name_out,
@@ -343,146 +291,119 @@ Critical rules:
             "who_should_avoid":  who_avoid,
             "concerns":          concerns_out,
             "sources":           sorted(refs_union),
-            "ingredient_count":  len(ingredients),
+            "ingredient_count":  len(all_ingredients),
             "smart_score":       smart_score,
         }
-        _cput(ck, result)
         return result
 
-    except Exception as e:
-        print("Vision API error:", e)
-        return {"summary": f"Analysis failed: {e}", "concerns": [], "sources": [], "ingredient_count": 0}
+    except ServiceError:
+        raise
+    except Exception:
+        raise ServiceError("analysis_failed", "Analysis couldn't be completed. Please try again.", 502) from None
+
+@app.errorhandler(ServiceError)
+def service_error(error):
+    response = jsonify({"status": "error", "analysis_complete": False,
+                        "code": error.code, "error": error.message})
+    if error.retry_after:
+        response.headers["Retry-After"] = str(error.retry_after)
+    return response, error.http_status
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+@app.errorhandler(413)
+def too_large(error):
+    return service_error(ServiceError("image_too_large", "Choose an image smaller than 5 MB.", 413))
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return service_error(ServiceError("internal_error", "The request couldn't be completed.", 500))
+
+
+def actor_id():
+    # Ignore user-supplied forwarding headers by default. Set to 1 ONLY for
+    # direct Cloud Run ingress, which appends the client it observed. An extra
+    # load balancer needs a separately verified proxy configuration.
+    value = request.remote_addr or "unknown"
+    if os.environ.get("K_SERVICE") and os.environ.get("TRUSTED_PROXY_HOPS") == "1":
+        chain = request.headers.get("X-Forwarded-For", "").split(",")
+        if chain[-1].strip():
+            value = chain[-1].strip()
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return "unknown"
+
+
 @app.get("/")
 def root():
-    return jsonify({"ok": True, "service": "vyoora-backend", "version": "10"})
+    return jsonify({"ok": True, "service": "vyoora-backend", "version": "11",
+                    "analysis_contract": 1})
+
 
 @app.get("/health")
 def health():
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok"})
 
-@app.route("/upload", methods=["OPTIONS"])
-def upload_options():
-    return make_response(("", 204))
 
-@app.route("/upload", methods=["POST"])
+@app.route("/upload", methods=["OPTIONS", "POST"])
 def upload():
-    if not _check_rate(_ip(), "upload", 10):
-        return jsonify({"error": "Too many requests. Please wait."}), 429
-    if not (oai_client and OPENAI_API_KEY):
-        return jsonify({"error": "Server configuration error."}), 500
-
+    if request.method == "OPTIONS":
+        return "", 204
     f = request.files.get("image") or request.files.get("file")
     if not f:
-        return jsonify({"error": "No image provided"}), 400
-
-    raw_bytes    = f.read()
-    image_b64    = base64.b64encode(raw_bytes).decode("utf-8")
+        raise ServiceError("invalid_image", "Choose an ingredient label photo.", 400)
     product_type = request.form.get("product_type", "unknown")
-
-    filename = (f.filename or "").lower()
-    if filename.endswith(".png"):   media_type = "image/png"
-    elif filename.endswith(".webp"): media_type = "image/webp"
-    else:                           media_type = "image/jpeg"
-
+    allowed = {"unknown", "Moisturizer", "Serum", "Cleanser", "Sunscreen", "Toner",
+               "Eye cream", "Body lotion", "Hair product", "Other"}
+    if product_type not in allowed:
+        raise ServiceError("invalid_request", "Choose a valid product type.", 400)
     try:
-        result = analyse_image(image_b64, media_type, product_type)
-        return jsonify(result), 200
-    except Exception as e:
-        return jsonify({"error": f"Processing failed: {e}"}), 500
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(f.stream) as image:
+                if image.format not in {"JPEG", "PNG", "WEBP"} or getattr(image, "n_frames", 1) != 1:
+                    raise ValueError("Unsupported image")
+                image.load()
+                normalized = ImageOps.exif_transpose(image).convert("RGB")
+                normalized.thumbnail((1600, 1600))
+                buffer = io.BytesIO()
+                normalized.save(buffer, format="JPEG", quality=85)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        raise ServiceError("invalid_image", "Choose a valid JPEG, PNG, or WebP label photo.", 400) from None
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return jsonify(analyse_image(encoded, "image/jpeg", product_type, actor=actor_id()))
 
 
 @app.route("/chat", methods=["OPTIONS", "POST"])
 def chat():
     if request.method == "OPTIONS":
-        return make_response(("", 204))
-    if not _check_rate(_ip(), "chat", 30):
-        return jsonify({"reply": "You're sending messages too quickly."}), 200
-
-    data         = request.get_json(force=True, silent=True) or {}
-    user_message = (data.get("message") or "").strip()
-    if not user_message:
-        return jsonify({"error": "Missing message"}), 400
-    if len(user_message) > 2000:
-        return jsonify({"reply": "Please keep messages under 2000 characters."}), 200
-
+        return "", 204
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise ServiceError("invalid_request", "Send a message to continue.", 400)
+    message = data.get("message")
+    if not isinstance(message, str) or not message.strip() or len(message) > 2000:
+        raise ServiceError("invalid_request", "Send a message of 1 to 2000 characters.", 400)
+    history_in = data.get("history", [])
+    if not isinstance(history_in, list) or len(history_in) > 20:
+        raise ServiceError("invalid_request", "This conversation is too long.", 400)
     history = []
-    for turn in (data.get("history") or [])[-20:]:
-        role    = str(turn.get("role", "")).strip()
-        content = str(turn.get("content", "")).strip()
-        if role in ("user", "assistant") and content:
-            history.append({"role": role, "content": content})
-
-    if not (oai_client and OPENAI_API_KEY):
-        return jsonify({"reply": "Server configuration error."}), 200
-
-    try:
-        completion = oai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.4,
-            max_tokens=350,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are Lumi, Vyoora's intelligent skincare ingredient expert. "
-                        "Help users understand ingredients, routines, and product safety. "
-                        "Be evidence-based, practical, and conversational. "
-                        "Use precise language: irritation potential, sensitization risk, concentration-dependent effects. "
-                        "Never use: toxic, harmful, unsafe, clean beauty. "
-                        "Avoid medical diagnoses. Do not use em dashes. "
-                        "Keep replies under 130 words unless more detail is asked for. "
-                        "At the end of every response, always include a Sources line in this exact format: "
-                        "'Sources: EU CosIng (https://ec.europa.eu/growth/tools-databases/cosing) | "
-                        "CIR (https://cir-safety.org) | "
-                        "PubMed (https://pubmed.ncbi.nlm.nih.gov) | "
-                        "EWG Skin Deep (https://www.ewg.org/skindeep)' "
-                        "After the sources line, always add one engaging follow-up separated by |||. "
-                        "The follow-up must have TWO versions separated by ^^^: first the suggestion phrased as a question from you, then the same idea rephrased as a request from the user. "
-                        "Example: 'Niacinamide strengthens the skin barrier and reduces redness.\n\n"
-                        "Sources: EU CosIng (https://ec.europa.eu/growth/tools-databases/cosing) | CIR (https://cir-safety.org) | PubMed (https://pubmed.ncbi.nlm.nih.gov) | EWG Skin Deep (https://www.ewg.org/skindeep) "
-                        "|||Would you like to know how to layer it with vitamin C or retinol?^^^Tell me how to layer niacinamide with vitamin C or retinol'"
-                    ),
-                },
-                *history,
-                {"role": "user", "content": user_message},
-            ],
-        )
-        raw_reply = completion.choices[0].message.content.strip()
-
-        # Split out the ||| follow-up
-        if '|||' in raw_reply:
-            parts = raw_reply.split('|||')
-            reply_text = parts[0].strip()
-            followup = parts[1].strip() if len(parts) > 1 else None
-        else:
-            reply_text = raw_reply
-            followup = None
-
-        # Strip Sources line from reply text
-        lines = reply_text.split('\n')
-        clean_lines = [l for l in lines if not l.strip().startswith('Sources:')]
-        reply_clean = '\n'.join(clean_lines).strip()
-
-        # Always return structured sources
-        sources = [
-            {"label": "EU CosIng", "url": "https://ec.europa.eu/growth/tools-databases/cosing"},
-            {"label": "CIR", "url": "https://cir-safety.org"},
-            {"label": "PubMed", "url": "https://pubmed.ncbi.nlm.nih.gov"},
-            {"label": "EWG Skin Deep", "url": "https://www.ewg.org/skindeep"},
-        ]
-
-        reply_final = reply_clean
-        if followup:
-            reply_final = reply_clean + '|||' + followup
-
-        return jsonify({"reply": reply_final, "sources": sources}), 200
-    except Exception as e:
-        print("Chat error:", e)
-        return jsonify({"reply": "Sorry, I couldn't process that. Try again."}), 200
+    for turn in history_in:
+        if (not isinstance(turn, dict) or turn.get("role") not in {"user", "assistant"}
+            or not isinstance(turn.get("content"), str) or len(turn["content"]) > 2000):
+            raise ServiceError("invalid_request", "This conversation couldn't be read.", 400)
+        history.append({"role": turn["role"], "content": turn["content"]})
+    messages = [{"role": "system", "content": (
+        "You are Lumi, Vyoora's skincare ingredient assistant. Explain uncertainty, "
+        "concentration-dependent irritation, and evidence limits. Avoid diagnoses, "
+        "guarantees of safety, invented sources, and invented regulatory claims. "
+        "Keep replies under 130 words. If asked about analysis errors, ask the user "
+        "to retry; never interpret a failed analysis as a clear result.")},
+        *history, {"role": "user", "content": message.strip()}]
+    reply = complete("chat", actor_id(), messages)
+    return jsonify({"status": "success", "reply": reply})
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 5001)))

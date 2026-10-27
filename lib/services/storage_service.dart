@@ -1,5 +1,6 @@
 // lib/services/storage_service.dart
 import 'dart:convert';
+import '../models/analysis_outcome.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
@@ -21,14 +22,24 @@ class StorageService {
   static Future<List<ScanRecord>> getScanHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_keyScanHistory) ?? [];
-    return raw
-        .map((s) => ScanRecord.fromJson(jsonDecode(s)))
-        .toList()
-        .reversed
-        .toList();
+    final completed = <ScanRecord>[];
+    for (final entry in raw) {
+      try {
+        final record = ScanRecord.fromJson(jsonDecode(entry));
+        if (AnalysisOutcome.fromJson(record.fullResult).isSuccess) {
+          completed.add(record);
+        }
+      } on Object {
+        // Keep old/corrupt entries on disk but never present them as successes.
+      }
+    }
+    return completed.reversed.toList();
   }
 
   static Future<void> addScan(ScanRecord record) async {
+    if (!AnalysisOutcome.fromJson(record.fullResult).isSuccess) {
+      throw ArgumentError('Only completed analyses can be saved.');
+    }
     final prefs = await SharedPreferences.getInstance();
     final history = prefs.getStringList(_keyScanHistory) ?? [];
     history.add(jsonEncode(record.toJson()));
