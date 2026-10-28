@@ -8,11 +8,6 @@ This branch combines the Desktop v10 application's onboarding, profile, history,
 and interface with the upstream checkout's complete platform scaffolding.
 See [consolidation notes](docs/CONSOLIDATION.md) for provenance and retained history.
 
-## Sprint planning
-
-Track the six open V2 follow-ups, dependencies, and release gates in the
-[sprint dashboard](docs/SPRINT-DASHBOARD.md).
-
 ## Run and verify
 
 ```sh
