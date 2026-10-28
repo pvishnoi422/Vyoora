@@ -20,6 +20,16 @@ def test_atomic_global_budget_across_clients(monkeypatch):
         except ServiceError:return False
     with ThreadPoolExecutor(max_workers=8) as pool:
         allowed=list(pool.map(attempt,range(8)))
+    # Contention can exhaust transaction retries and safely reject a request.
+    # Check accounting before filling the remaining budget without contention.
+    assert 1 <= sum(allowed) <= 2
+    days=[d.to_dict() for d in col.stream() if d.id.startswith('day_')]
+    assert len(days)==1 and days[0]['reserved_micro_usd']==sum(allowed)*250_000
+    assert days[0]['requests']==sum(allowed)
+    for n in range(8,10):
+        if sum(allowed)==2:break
+        allowed.append(attempt(n))
     assert sum(allowed)==2
+    assert not attempt(10)
     days=[d.to_dict() for d in col.stream() if d.id.startswith('day_')]
     assert len(days)==1 and days[0]['reserved_micro_usd']==500_000
