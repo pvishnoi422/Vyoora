@@ -55,19 +55,19 @@ def guard():
 
 def test_atomic_budget_across_multiple_workers(guard):
     g, now = guard
-    g.controls.document('policy').update({'daily_budget_micro_usd': 500_000})
+    g.controls.document('policy').update({'daily_budget_micro_usd': 3*TRYON_RESERVATION})
     def submit(n):
         try: g.admit(f'actor-{n}', 'request', 'shirt', 'photo'); return True
         except ServiceError: return False
     with ThreadPoolExecutor(max_workers=8) as pool: admitted = list(pool.map(submit, range(8)))
     # Contention may fail closed early; it must never admit over the cap.
-    assert 1 <= sum(admitted) <= 5
+    assert 1 <= sum(admitted) <= 3
     for n in range(8, 12):
-        if sum(admitted) == 5: break
+        if sum(admitted) == 3: break
         admitted.append(submit(n))
-    assert sum(admitted) == 5
-    assert g.controls.document('day_20261028').get().to_dict()['reserved_micro_usd'] == 500_000
-    assert len(list(g.jobs.stream())) == 5
+    assert sum(admitted) == 3
+    assert g.controls.document('day_20261028').get().to_dict()['reserved_micro_usd'] == 3*TRYON_RESERVATION
+    assert len(list(g.jobs.stream())) == 3
     assert not list(g.client.collection('vyoora_ai_guard').stream())
 
 

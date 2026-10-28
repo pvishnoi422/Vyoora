@@ -65,20 +65,38 @@ def complete(endpoint, actor, messages):
         raise ServiceError("analysis_failed", "Analysis couldn't be completed. Please try again.", 502) from None
 
 
-# Google lists retirement on 2027-03-15. Review the model and bounded price
-# before production launch or replacement; never silently fall back.
-TRYON_MODEL = 'virtual-try-on-001'
-TRYON_REGION = 'us-central1'
+# Deliberate provider upgrade: instruction-capable editing preserves garment
+# proportions instead of inheriting the reference outfit's cropped hem.
+# https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-flash-image
+TRYON_MODEL = 'gemini-3.1-flash-image'
+TRYON_REGION = 'us'
+TRYON_OUTPUT_TOKENS = 2048
+TRYON_PROMPT_BYTE_LIMIT = 2048
+GARMENT_PRESERVATION_PROMPT = (
+    "Edit the adult person in image 1 to wear the exact garment from image 2. "
+    "Image 2 is the product, not a style inspiration. Use its original silhouette and proportions, "
+    "including torso length, hem position relative to garment width, sleeve length, neckline, texture and details. "
+    "Replace the existing garment completely; do not inherit a cropped hem or tucked-in styling from image 1. "
+    "Do not shorten, crop, roll up, tuck in, stretch or redesign the product. "
+    "A full-length sweater must remain full-length and cover the waist; never turn it into a crop top. "
+    "Preserve the person's identity, body shape, pose, original camera framing and background. "
+    "Keep the complete garment visible. Output one edited photograph only."
+)
 
 
 def virtual_tryon(person, garment, *, credentials, guard, job_key, project, session=None):
-    """One bounded Google VTO attempt, linked to its durable reservation.
+    """One bounded, instruction-guided Google image edit; no hidden fallbacks.
 
-    REST schema: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/virtual-try-on-api
-    No redirects, output URLs, auth retry, provider retry or fallback model.
+    Reviewed 2026-10-28, US standard pricing: input $0.55/M tokens, image
+    output $66/M (text/thinking is cheaper). Exactly two images at 1120
+    input tokens each + <=2048 prompt bytes/tokens, <=2048 total output
+    tokens: ceiling $0.137527 < the $0.15 reservation. No tools,
+    search, multiple candidates, auto retry, or output resolutions above 1K.
+    https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
     """
     import base64
     import io
+    import json
     import re
     import requests
     from google.auth.transport.requests import Request
@@ -88,21 +106,35 @@ def virtual_tryon(person, garment, *, credentials, guard, job_key, project, sess
         raise ServiceError('tryon_disabled', 'Try-on testing is paused.')
     if not re.fullmatch(r'[a-z][a-z0-9-]{4,62}', project) or not all(0 < len(x) <= 5*1024*1024 for x in (person, garment)):
         raise ServiceError('invalid_request', 'The selected photos are invalid.', 400)
-    url = f'https://{TRYON_REGION}-aiplatform.googleapis.com/v1/projects/{project}/locations/{TRYON_REGION}/publishers/google/models/{TRYON_MODEL}:predict'
-    payload = {'instances': [{'personImage': {'image': {'bytesBase64Encoded': base64.b64encode(person).decode()}},
-        'productImages': [{'image': {'bytesBase64Encoded': base64.b64encode(garment).decode()}}]}],
-        'parameters': {'sampleCount': 1, 'personGeneration': 'allow-adult',
-                       'safetySetting': 'block-medium-and-above', 'addWatermark': True,
-                       'outputOptions': {'mimeType': 'image/png'}}}
+    try:
+        parts = [{'text': GARMENT_PRESERVATION_PROMPT}]
+        ratio = None
+        for label, data in [('Image 1: adult person', person), ('Image 2: complete original product', garment)]:
+            with Image.open(io.BytesIO(data)) as image:
+                if image.format not in {'JPEG', 'PNG'} or max(image.size) > 1600:
+                    raise ValueError('Unbounded input')
+                if ratio is None: ratio = image.width / image.height
+                mime = {'JPEG': 'image/jpeg', 'PNG': 'image/png'}[image.format]
+            parts.extend([{'text': label}, {'inlineData': {'mimeType': mime, 'data': base64.b64encode(data).decode()}}])
+        if sum(len(p.get('text', '').encode()) for p in parts) > TRYON_PROMPT_BYTE_LIMIT:
+            raise ValueError('Unbounded prompt')
+        ratios = {'1:1':1, '2:3':2/3, '3:2':3/2, '3:4':3/4, '4:3':4/3, '4:5':4/5, '5:4':5/4, '9:16':9/16, '16:9':16/9}
+        aspect = min(ratios, key=lambda value: abs(ratios[value]-ratio))
+    except Exception:
+        raise ServiceError('invalid_request', 'Use a complete, supported garment and reference photo.', 400) from None
+    payload = {'contents': [{'role': 'user', 'parts': parts}], 'generationConfig': {
+        'candidateCount': 1, 'maxOutputTokens': TRYON_OUTPUT_TOKENS, 'responseModalities': ['IMAGE'],
+        'thinkingConfig': {'thinkingLevel': 'MINIMAL', 'includeThoughts': False},
+        'imageConfig': {'imageSize': '1K', 'aspectRatio': aspect}},
+        'safetySettings': [{'category': c, 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'} for c in (
+            'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT')]}
+    url = f'https://aiplatform.{TRYON_REGION}.rep.googleapis.com/v1/projects/{project}/locations/{TRYON_REGION}/publishers/google/models/{TRYON_MODEL}:generateContent'
     headers = {'Content-Type': 'application/json', 'X-Goog-User-Project': project}
     credentials.before_request(Request(), 'POST', url, headers)
     client = session or requests.Session()
     try:
-        # This transaction checks consent/entitlement/kill-switch again and
-        # permanently records the only attempt BEFORE transmitting any photos.
         guard.start_attempt(job_key)
-        response = client.post(url, json=payload, headers=headers, timeout=(10, 120),
-                               allow_redirects=False, stream=True)
+        response = client.post(url, json=payload, headers=headers, timeout=(10, 120), allow_redirects=False, stream=True)
         try:
             if response.status_code != 200:
                 code = 'provider_access_denied' if response.status_code in (401, 403) else 'generation_failed'
@@ -111,25 +143,23 @@ def virtual_tryon(person, garment, *, credentials, guard, job_key, project, sess
             for chunk in response.iter_content(64*1024):
                 body.extend(chunk)
                 if len(body) > 12*1024*1024: raise ValueError('Oversized provider output')
-            import json
-            predictions = json.loads(body)['predictions']
-            if not isinstance(predictions, list) or len(predictions) != 1: raise ValueError('Wrong output count')
-            output = predictions[0]
-            if 'images' in output:
-                if not isinstance(output['images'], list) or len(output['images']) != 1: raise ValueError('Wrong output count')
-                output = output['images'][0]
-            if output.get('raiFilteredReason'):
+            result = json.loads(body)
+            if result.get('promptFeedback', {}).get('blockReason'):
                 raise ServiceError('generation_blocked', 'These photos could not be used for a preview. Try different photos.', 422)
-            mime = output.get('mimeType')
-            if mime not in {'image/png', 'image/jpeg'} or output.get('gcsUri'): raise ValueError('Unexpected output type')
-            data = base64.b64decode(output['bytesBase64Encoded'], validate=True)
+            candidates = result.get('candidates', [])
+            if len(candidates) != 1 or candidates[0].get('finishReason') != 'STOP':
+                raise ValueError('Incomplete, blocked, or multiple candidates')
+            images = [p['inlineData'] for p in candidates[0].get('content', {}).get('parts', []) if 'inlineData' in p and not p.get('thought')]
+            if len(images) != 1: raise ValueError('Wrong output count')
+            output = images[0]; mime = output.get('mimeType')
+            if mime not in {'image/png', 'image/jpeg'}: raise ValueError('Unexpected output type')
+            data = base64.b64decode(output['data'], validate=True)
             if not 0 < len(data) <= 7*1024*1024: raise ValueError('Invalid output size')
             with Image.open(io.BytesIO(data)) as image:
                 if image.width*image.height > 20_000_000 or image.format != {'image/png': 'PNG', 'image/jpeg': 'JPEG'}[mime]:
                     raise ValueError('Invalid output image')
                 image.verify()
-            with Image.open(io.BytesIO(data)) as decoded:
-                decoded.load()
+            with Image.open(io.BytesIO(data)) as decoded: decoded.load()
             return data, mime
         finally:
             response.close()

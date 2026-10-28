@@ -90,10 +90,11 @@ class FirestoreGuard:
             raise ServiceError("controls_unavailable", "Analysis is temporarily unavailable.") from None
 
 
-# The pinned Google virtual-try-on-001 price is $0.06/output; reserve $0.10
-# for one output, no retries. This ledger NEVER uses the skincare AI counters.
-# https://cloud.google.com/vertex-ai/generative-ai/pricing
-TRYON_RESERVATION = 100_000
+# Bounded Gemini 3.1 Flash Image edit: reserve $0.15 for <=$0.137527
+# worst-case input/output tokens, one candidate and no tools/retries.
+# See provider.py for the reviewed US price and fixed token/image ceilings.
+# This ledger NEVER uses skincare AI counters or rewrites older reservations.
+TRYON_RESERVATION = 150_000
 TRYON_DAY_CAP = 1_000_000
 TRYON_MONTH_CAP = 5_000_000
 TRYON_PER_USER_DAY = 3

@@ -421,6 +421,20 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
           if (job.state == TryOnState.succeeded && !job.expired) ...[
             const Text('Your AI-generated preview', key: Key('tryon-success')),
             const SizedBox(height: 16),
+            ExpansionTile(
+              key: const Key('tryon-compare-original'),
+              title: const Text('Compare original garment'),
+              subtitle: const Text('Check the hem and sleeve lengths'),
+              children: [
+                SizedBox(
+                  height: 240,
+                  child: PrivatePhoto(
+                    identity: 'original-${job.garmentId}',
+                    load: () => widget.repository.image(job.garmentId),
+                  ),
+                ),
+              ],
+            ),
             AspectRatio(
               aspectRatio: 0.8,
               child: PrivatePhoto(
