@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Take a photo of a product ingredient label or a garment for your private wardrobe.</string>
+	<string>Take a photo of an ingredient label or garment, or a reference photo for private try-on.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose an ingredient label to analyze or a garment photo for your private wardrobe.</string>
+	<string>Choose an ingredient label, garment photo, or reference photo for your private wardrobe and try-on.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

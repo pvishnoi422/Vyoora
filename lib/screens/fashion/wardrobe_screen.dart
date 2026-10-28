@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/fashion/domain.dart';
 import '../../services/wardrobe_repository.dart';
 import '../../services/wardrobe_session.dart';
+import '../../services/tryon_repository.dart' show tryOnCategories;
 
 String wardrobeError(Object error) => error is WardrobeFailure
     ? error.message
@@ -282,7 +283,7 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
     } catch (e) {
       if (mounted) setState(() => error = wardrobeError(e));
     } finally {
-                            if (context.mounted)
+      if (context.mounted)
         setState(() {
           uploading = false;
           choosingPhoto = false;
@@ -335,7 +336,8 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
         IconButton(
           key: const Key('wardrobe-refresh'),
           tooltip: 'Refresh',
-          onPressed: loading || uploading || choosingPhoto || deleting.isNotEmpty
+          onPressed:
+              loading || uploading || choosingPhoto || deleting.isNotEmpty
               ? null
               : () => load(refreshToken: true),
           icon: const Icon(Icons.refresh),
@@ -350,7 +352,9 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
     ),
     floatingActionButton: FloatingActionButton.extended(
       key: const Key('add-garment'),
-      onPressed: uploading || loading || choosingPhoto || deleting.isNotEmpty ? null : add,
+      onPressed: uploading || loading || choosingPhoto || deleting.isNotEmpty
+          ? null
+          : add,
       icon: uploading
           ? const SizedBox(
               width: 20,
@@ -428,7 +432,7 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
                       .clamp(2, 6),
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  mainAxisExtent: 260,
+                  mainAxisExtent: 300,
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final item = items[index];
@@ -474,7 +478,8 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
                               ),
                               IconButton(
                                 tooltip: 'Delete ${item.name}',
-                                onPressed: loading || uploading || deleting.isNotEmpty
+                                onPressed:
+                                    loading || uploading || deleting.isNotEmpty
                                     ? null
                                     : () => remove(item),
                                 icon: deleting.contains(item.id)
@@ -488,6 +493,22 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
                             ],
                           ),
                         ),
+                        if (tryOnCategories.contains(item.category))
+                          TextButton.icon(
+                            onPressed:
+                                loading ||
+                                    uploading ||
+                                    choosingPhoto ||
+                                    deleting.isNotEmpty
+                                ? null
+                                : () => Navigator.pushNamed(
+                                    context,
+                                    '/fashion/try-on',
+                                    arguments: item.id,
+                                  ),
+                            icon: const Icon(Icons.auto_awesome, size: 18),
+                            label: const Text('Try on'),
+                          ),
                       ],
                     ),
                   );

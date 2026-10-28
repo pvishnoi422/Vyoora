@@ -52,9 +52,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Reference photos'));
       await tester.pumpAndSettle();
-      expect(find.text('A private space for your photos'), findsOneWidget);
+      expect(find.text('Open wardrobe'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Saved looks'));
       await tester.tap(find.text('Saved looks'));
       await tester.pumpAndSettle();
       expect(find.text('No saved looks yet'), findsOneWidget);

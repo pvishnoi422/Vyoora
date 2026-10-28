@@ -93,6 +93,14 @@ class GCSWardrobe:
         except NotFound:
             raise AccessDenied('not_found', 404) from None
 
+    def item(self, uid, item_id):
+        blob = self.blob(uid, item_id)
+        try:
+            blob.reload(timeout=30)
+            return self.record(blob, uid)
+        except NotFound:
+            raise AccessDenied('not_found', 404) from None
+
     def delete(self, uid, item_id):
         blob = self.blob(uid, item_id)
         try:
@@ -107,7 +115,7 @@ class GCSWardrobe:
             raise AccessDenied('item_changed_retry', 409) from None
 
 
-def create_wardrobe_app(identity, store, *, origins=()):
+def create_wardrobe_app(identity, store, *, origins=(), tryon=None):
     app = Flask(__name__)
     app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
     allowed_origins = set(origins)
@@ -188,4 +196,7 @@ def create_wardrobe_app(identity, store, *, origins=()):
         store.delete(user(), item_id)
         return '', 204
 
+    if tryon is not None:
+        from tryon import register_tryon_routes
+        register_tryon_routes(app, user, tryon)
     return app

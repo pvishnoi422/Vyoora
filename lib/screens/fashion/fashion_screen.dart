@@ -18,6 +18,12 @@ class FashionScreen extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         _Destination(
+          icon: Icons.auto_awesome,
+          title: 'Try on',
+          subtitle: 'See a saved garment on your private reference photo',
+          route: '/fashion/try-on',
+        ),
+        _Destination(
           icon: Icons.checkroom_outlined,
           title: 'Wardrobe',
           subtitle: 'A place for the pieces you love',
@@ -62,18 +68,6 @@ class _Destination extends StatelessWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => Navigator.pushNamed(context, route),
     ),
-  );
-}
-
-class ReferencePhotosScreen extends StatelessWidget {
-  const ReferencePhotosScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const _CollectionScreen(
-    title: 'Reference photos',
-    icon: Icons.photo_library_outlined,
-    message: 'A private space for your photos',
-    description:
-        'A verified account and your consent are required before adding a reference photo. Reference photos expire after seven days.',
   );
 }
 

@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 COPY requirements.wardrobe.txt ./
 RUN pip install -r requirements.wardrobe.txt && useradd --uid 10001 --create-home appuser
-COPY media_security.py wardrobe.py wardrobe_app.py ./
+COPY media_security.py wardrobe.py wardrobe_app.py provider.py safety.py tryon.py tryon_media.py ./
 USER appuser
 EXPOSE 8080
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "90", "wardrobe_app:app"]

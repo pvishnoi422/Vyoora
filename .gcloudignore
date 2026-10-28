@@ -13,3 +13,5 @@
 !backend/wardrobe.py
 !backend/wardrobe_app.py
 !backend/requirements.wardrobe.txt
+!backend/tryon.py
+!backend/tryon_media.py

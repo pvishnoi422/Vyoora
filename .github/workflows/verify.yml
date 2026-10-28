@@ -51,6 +51,9 @@ jobs:
 
   v2-security:
     runs-on: ubuntu-latest
+    env:
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8085
+      GOOGLE_CLOUD_PROJECT: demo-vyoora
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,9 +68,19 @@ jobs:
           java-version: '21'
       - run: pip install -r verification/auth_storage/requirements.txt
       - run: npm ci --prefix verification/auth_storage --no-audit --no-fund
+      - name: Start private job-control emulator
+        run: |
+          docker run -d --name firestore-v2 -p 8085:8085 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
+            gcloud emulators firestore start --host-port=0.0.0.0:8085 --project=demo-vyoora
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:8085 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          docker logs firestore-v2
+          exit 1
       - name: Verify authenticated owner-only access with the local emulator
         run: npm test --prefix verification/auth_storage
       - name: Build isolated wardrobe runtime
         run: |
           docker build -f backend/Dockerfile.wardrobe -t vyoora-wardrobe-test backend
-          docker run --rm --entrypoint python vyoora-wardrobe-test -c "from pathlib import Path; import os; assert os.getuid() != 0; assert not list(Path('/app').rglob('.env*')); assert not Path('/app/provider.py').exists(); import wardrobe"
+          docker run --rm --entrypoint python vyoora-wardrobe-test -c "from pathlib import Path; import os; assert os.getuid() != 0; assert not list(Path('/app').rglob('.env*')); assert not Path('/app/app.py').exists(); import wardrobe, tryon, provider; assert provider.OpenAI is None; assert os.environ.get('TRYON_ENABLED', 'false') == 'false'"

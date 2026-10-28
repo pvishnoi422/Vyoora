@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http;
 
 class WardrobeFailure implements Exception {
   final String message;
-  const WardrobeFailure(this.message);
+  final String? code;
+  final int? status;
+  const WardrobeFailure(this.message, {this.code, this.status});
   @override
   String toString() => message;
 }
