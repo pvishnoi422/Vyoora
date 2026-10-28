@@ -1,0 +1,9 @@
+# Allowlist keeps source secrets, archives, test data and environments out.
+**
+!app.py
+!contracts.py
+!provider.py
+!safety.py
+!gunicorn.conf.py
+!requirements.txt
+!requirements.lock

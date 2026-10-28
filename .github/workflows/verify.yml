@@ -1,0 +1,48 @@
+name: Verify maintained application
+on:
+  pull_request:
+  push:
+    branches: [main, maintenance/secure-foundation]
+permissions:
+  contents: read
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test
+      - run: flutter build web --release
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8085
+      GOOGLE_CLOUD_PROJECT: demo-vyoora
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend/requirements.lock pytest pip-audit
+      - name: Start isolated Firestore emulator
+        run: |
+          docker run -d --name firestore -p 8085:8085 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
+            gcloud emulators firestore start --host-port=0.0.0.0:8085 --project=demo-vyoora
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:8085 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          docker logs firestore
+          exit 1
+      - run: python -m pytest backend/tests -q
+      - run: pip-audit -r backend/requirements.lock
+      - name: Build backend and verify runtime exclusions
+        run: |
+          docker build -t vyoora-test backend
+          docker run --rm --entrypoint python vyoora-test -c "from pathlib import Path; import os; assert os.getuid() != 0; assert not list(Path('/app').rglob('.env*')); assert not Path('/app/venv').exists(); import app"

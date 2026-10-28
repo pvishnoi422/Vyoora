@@ -1,21 +1,10 @@
+# Build with: docker build -t vyoora backend
 FROM python:3.11-slim
-
-# Minimal libs OpenCV needs in headless mode
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 libsm6 libxext6 libxrender1 \
-    && rm -rf /var/lib/apt/lists/*
-
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
-
-# Install Python deps first (better layer caching)
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
-
-# Copy the rest of the app
-COPY . /app
-
-# Warm EasyOCR weights so they’re baked into the image
-RUN python runtime_bootstrap.py || true
-
+COPY requirements.lock .
+RUN pip install -r requirements.lock && useradd --uid 10001 --create-home appuser
+COPY app.py contracts.py provider.py safety.py gunicorn.conf.py ./
+USER appuser
 EXPOSE 8080
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "app:app"]
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "app:app"]

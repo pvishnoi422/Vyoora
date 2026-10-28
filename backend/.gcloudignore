@@ -1,0 +1,10 @@
+# Upload only runtime build inputs. Never upload the surrounding local folder.
+**
+!Dockerfile
+!.dockerignore
+!app.py
+!contracts.py
+!provider.py
+!safety.py
+!gunicorn.conf.py
+!requirements.lock

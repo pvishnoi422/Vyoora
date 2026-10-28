@@ -1,0 +1,10 @@
+**
+!backend/
+!backend/Dockerfile
+!backend/app.py
+!backend/contracts.py
+!backend/provider.py
+!backend/safety.py
+!backend/gunicorn.conf.py
+!backend/requirements.txt
+!backend/requirements.lock
