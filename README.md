@@ -17,11 +17,6 @@ verified private-image approach and preserved V11 rollback path. See
 [tested V11 restore](docs/v2/V11_ROLLBACK.md). These foundations do not enable a
 paid fitting-room endpoint or deploy V2 over production.
 
-## Sprint planning
-
-Track the six open V2 follow-ups, dependencies, and release gates in the
-[sprint dashboard](docs/SPRINT-DASHBOARD.md).
-
 ## Run and verify
 
 ```sh
