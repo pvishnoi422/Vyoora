@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_shell.dart';
+import 'navigation/fashion_routes.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,6 +82,7 @@ class VyooraApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
+        ...fashionRoutes,
         '/': (_) => const SplashScreen(),
         '/onboarding': (_) => const OnboardingScreen(),
         '/home': (_) => const HomeShell(),

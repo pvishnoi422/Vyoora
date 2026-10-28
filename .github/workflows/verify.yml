@@ -1,8 +1,10 @@
 name: Verify maintained application
 on:
   pull_request:
+    paths-ignore: ['docs/**', 'README.md']
   push:
-    branches: [main, maintenance/secure-foundation]
+    branches: [main, maintenance/secure-foundation, development/v2]
+    paths-ignore: ['docs/**', 'README.md']
 permissions:
   contents: read
 jobs:
@@ -40,9 +42,28 @@ jobs:
           done
           docker logs firestore
           exit 1
-      - run: python -m pytest backend/tests -q
+      - run: python -m pytest backend/tests verification/test_rollback_plan.py -q
       - run: pip-audit -r backend/requirements.lock
       - name: Build backend and verify runtime exclusions
         run: |
           docker build -t vyoora-test backend
           docker run --rm --entrypoint python vyoora-test -c "from pathlib import Path; import os; assert os.getuid() != 0; assert not list(Path('/app').rglob('.env*')); assert not Path('/app/venv').exists(); import app"
+
+  v2-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: pip install -r verification/auth_storage/requirements.txt
+      - run: npm ci --prefix verification/auth_storage --no-audit --no-fund
+      - name: Verify authenticated owner-only access with the local emulator
+        run: npm test --prefix verification/auth_storage

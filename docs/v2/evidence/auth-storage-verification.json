@@ -1,0 +1,50 @@
+{
+  "verifiedAt": "2026-10-28T00:19:16.341873+00:00",
+  "scope": "Isolated verification; no production auth or image routes enabled",
+  "identityProvider": "Firebase Authentication",
+  "identityEnvironment": "local demo-vyoora-v2 authentication emulator",
+  "storageEnvironment": "real Google Cloud Storage verification bucket",
+  "bucket": "vyoora-backend-v2-private-20261027",
+  "uniformBucketAccess": true,
+  "publicAccessPrevention": "enforced",
+  "publicIamPrincipals": false,
+  "softDeleteSeconds": 0,
+  "lifecycleRules": [
+    {
+      "action": {
+        "type": "Delete"
+      },
+      "condition": {
+        "daysSinceCustomTime": 0,
+        "matchesPrefix": [
+          "reference-photos/",
+          "saved-looks/"
+        ]
+      }
+    }
+  ],
+  "remainingTestObjects": 0,
+  "tests": {
+    "passed": 14,
+    "skipped": 1,
+    "skipReason": "Memory-only duplicate of real-bucket acceptance case"
+  },
+  "verifiedCases": [
+    "verified owner create/read/delete",
+    "cross-user create/read/replace/delete denial",
+    "unauthenticated and invalid-token denial",
+    "unverified-email denial",
+    "disabled-account denial",
+    "expired-session denial",
+    "reference-photo access expiry at seven days",
+    "delete after expiry",
+    "consent and valid-image requirements",
+    "immutable create",
+    "production rejects emulator mode",
+    "anonymous direct GCS download denial",
+    "private no-store responses"
+  ],
+  "actualScheduledLifecycleDeletionTimeTested": false,
+  "lifecycleVerification": "Expiry blocks API access immediately; scheduled GCS deletion configuration was verified, not time-accelerated",
+  "productionUserAccountsOrPhotosUsed": false
+}

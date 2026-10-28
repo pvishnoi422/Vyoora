@@ -59,3 +59,10 @@ app.*.map.json
 *.bak2
 **/uploads/
 **/.pytest_cache/
+
+# Local V2 verification tools and emulator state.
+**/node_modules/
+**/.firebase/
+**/firebase-debug.log
+**/firebase-debug.*.log
+**/storage-debug.log

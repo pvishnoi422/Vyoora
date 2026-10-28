@@ -1,6 +1,8 @@
 # Maintained Vyoora application
 
-- Source of truth: this repository's `maintenance/secure-foundation` branch.
+- Stable source: `maintenance/secure-foundation`; V2 work belongs on
+  `development/v2`, created from maintained commit `78cd6ee`. Keep the live V11
+  runtime isolated from V2 development.
 - Preserve the explicit analysis contract: only a structurally validated result
   with status=success, analysis_complete=true and at least one ingredient may
   produce a score, a zero-concern message, or a completed history record.

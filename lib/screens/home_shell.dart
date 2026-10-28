@@ -1,14 +1,15 @@
-// lib/screens/home_shell.dart
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../upload_screen.dart';
-import '../screens/history_screen.dart';
+import 'history_screen.dart';
 import '../components/chat_screen.dart';
-import '../screens/profile_screen.dart';
+import 'profile_screen.dart';
+import 'fashion/fashion_screen.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
-
+  /// Optional hosts make the shell reusable and keep route tests independent
+  /// of network fonts, scan storage, and the individual feature screens.
+  final List<Widget>? primaryScreens;
+  const HomeShell({super.key, this.primaryScreens});
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
@@ -16,168 +17,96 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell>
     with SingleTickerProviderStateMixin {
   int _index = 0;
-  int _prevIndex = 0;
-  late AnimationController _transCtrl;
-  late Animation<double> _transAnim;
-
-  final _screens = const [
-    UploadScreen(),
-    HistoryScreen(),
-    ChatScreen(),
-    ProfileScreen(),
-  ];
+  final Set<int> _visited = {0};
+  late AnimationController _transition;
 
   @override
   void initState() {
     super.initState();
-    _transCtrl = AnimationController(
+    _transition = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 280),
+      value: 1,
     );
-    _transAnim = CurvedAnimation(
-      parent: _transCtrl,
-      curve: Curves.easeOutCubic,
-    );
-    _transCtrl.value = 1.0;
   }
 
   @override
   void dispose() {
-    _transCtrl.dispose();
+    _transition.dispose();
     super.dispose();
   }
 
-  void _switchTab(int i) {
-    if (i == _index) return;
-    setState(() => _prevIndex = _index);
-    _transCtrl.value = 0;
-    setState(() => _index = i);
-    _transCtrl.forward();
+  void _switchTab(int index) {
+    if (index == _index) return;
+    setState(() {
+      _index = index;
+      _visited.add(index);
+    });
+    _transition.forward(from: 0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final primary =
+        widget.primaryScreens ??
+        const [UploadScreen(), HistoryScreen(), ChatScreen(), ProfileScreen()];
+    assert(primary.length == 4);
+    final screens = [
+      primary[0],
+      const FashionScreen(),
+      primary[1],
+      primary[2],
+      primary[3],
+    ];
     return Scaffold(
       backgroundColor: const Color(0xFF080808),
-      body: AnimatedBuilder(
-        animation: _transAnim,
-        builder: (_, __) {
-          return Opacity(
-            opacity: _transAnim.value.clamp(0.0, 1.0),
-            child: Transform.translate(
-              offset: Offset(0, 12 * (1 - _transAnim.value)),
-              child: IndexedStack(index: _index, children: _screens),
-            ),
-          );
-        },
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF080808),
-          border: Border(
-            top: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.12)),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  current: _index,
-                  onTap: _switchTab,
-                ),
-                _NavItem(
-                  icon: Icons.history_outlined,
-                  activeIcon: Icons.history,
-                  label: 'History',
-                  index: 1,
-                  current: _index,
-                  onTap: _switchTab,
-                ),
-                _NavItem(
-                  icon: Icons.chat_bubble_outline,
-                  activeIcon: Icons.chat_bubble,
-                  label: 'Ask Lumi',
-                  index: 2,
-                  current: _index,
-                  onTap: _switchTab,
-                ),
-                _NavItem(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
-                  label: 'Profile',
-                  index: 3,
-                  current: _index,
-                  onTap: _switchTab,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final int index;
-  final int current;
-  final void Function(int) onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.index,
-    required this.current,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final active = index == current;
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 72,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      body: FadeTransition(
+        opacity: CurvedAnimation(parent: _transition, curve: Curves.easeOut),
+        child: IndexedStack(
+          index: _index,
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                active ? activeIcon : icon,
-                key: ValueKey(active),
-                color: active
-                    ? const Color(0xFFD4AF37)
-                    : Colors.white.withOpacity(0.7),
-                size: 24,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.cormorantGaramond(
-                color: active
-                    ? const Color(0xFFD4AF37)
-                    : Colors.white.withOpacity(0.7),
-                fontSize: 13,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
+            for (var i = 0; i < screens.length; i++)
+              _visited.contains(i) ? screens[i] : const SizedBox.shrink(),
           ],
         ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: const Color(0xFF080808),
+        indicatorColor: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+        selectedIndex: _index,
+        onDestinationSelected: _switchTab,
+        destinations: const [
+          NavigationDestination(
+            key: Key('nav-home'),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            key: Key('nav-fashion'),
+            icon: Icon(Icons.checkroom_outlined),
+            selectedIcon: Icon(Icons.checkroom),
+            label: 'Fashion',
+          ),
+          NavigationDestination(
+            key: Key('nav-history'),
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'History',
+          ),
+          NavigationDestination(
+            key: Key('nav-chat'),
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Ask Lumi',
+          ),
+          NavigationDestination(
+            key: Key('nav-profile'),
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }
