@@ -1,0 +1,23 @@
+{
+  "testedAt": "2026-10-28T00:15:22.992809+00:00",
+  "sourceCommit": "481824da4cd73588d4d2fa9f13a9c51427aa8648",
+  "sourceTag": "v11-rollback-2026-10-27",
+  "image": "us-central1-docker.pkg.dev/vyoora-backend/cloud-run-source-deploy/vyoora-backend@sha256:fe35748978a128bc462dc9da247f7414f9ae8c3d69c5eee64cd465939ffc3a36",
+  "restoredService": "vyoora-v11-rollback-drill",
+  "restoredRevision": "vyoora-v11-rollback-drill-00001-s78",
+  "privateService": true,
+  "health": "passed",
+  "v11Version": "passed",
+  "aiDisabledFailure": "passed",
+  "invalidImageFailure": "passed",
+  "tryOnAbsent": true,
+  "productionTrafficUnchanged": true,
+  "productionTraffic": [
+    {
+      "percent": 100,
+      "revisionName": "vyoora-backend-00026-kij"
+    }
+  ],
+  "paidProviderCalls": 0,
+  "quotaPolicyOrLedgerWrites": 0
+}

@@ -8,6 +8,15 @@ This branch combines the Desktop v10 application's onboarding, profile, history,
 and interface with the upstream checkout's complete platform scaffolding.
 See [consolidation notes](docs/CONSOLIDATION.md) for provenance and retained history.
 
+## V2 development
+
+`development/v2` contains the Fashion/Wardrobe navigation, typed domain models,
+verified private-image approach and preserved V11 rollback path. See
+[auth/storage verification](docs/v2/AUTH_AND_PRIVATE_IMAGES.md),
+[key-rotation dependencies](docs/v2/PROVIDER_KEY_ROTATION.md), and
+[tested V11 restore](docs/v2/V11_ROLLBACK.md). These foundations do not enable a
+paid fitting-room endpoint or deploy V2 over production.
+
 ## Sprint planning
 
 Track the six open V2 follow-ups, dependencies, and release gates in the

@@ -2,81 +2,50 @@
 
 Updated: October 27, 2026 (America/New_York).
 
-**Sprint progress: 0 of 6 items complete.** All six requested follow-ups remain open. Implementation and deployment of V2 are separate from this dashboard update.
+**Sprint implementation: 6 of 6 items complete.** Hosted verification of the published V2 change is tracked separately below. V2 foundations remain on the development branch; production continues to run V11.
 
-## Maintained foundation
+## Source and release separation
 
-- Source of truth: [pvishnoi422/Vyoora](https://github.com/pvishnoi422/Vyoora), default branch `maintenance/secure-foundation`; write access is confirmed.
-- Tested V11 code baseline: [`481824d`](https://github.com/pvishnoi422/Vyoora/commit/481824da4cd73588d4d2fa9f13a9c51427aa8648). [Hosted checks passed](https://github.com/pvishnoi422/Vyoora/actions/runs/40587129976), including 42 backend tests, six Flutter tests, image build, dependency audit, and release web build.
-- Production: `vyoora-backend-00026-kij`, us-central1, serving 100% of traffic. Guarded error responses, shared rate limits, Secret Manager mounting, and $5/day and $50/month reservation limits are active.
-- Flutter client distribution remains pending. No Fashion/Wardrobe feature or paid try-on endpoint is deployed.
+- Stable branch: [`maintenance/secure-foundation`](https://github.com/pvishnoi422/Vyoora/tree/maintenance/secure-foundation).
+- V2 branch: [`development/v2`](https://github.com/pvishnoi422/Vyoora/tree/development/v2), created from maintained commit `78cd6eecff628d69c40a16190bec0c7b109d10cd`.
+- Pinned V11 source: [`v11-rollback-2026-10-27`](https://github.com/pvishnoi422/Vyoora/tree/v11-rollback-2026-10-27), code commit `481824d`.
+- Production remains 100% on guarded V11 revision `vyoora-backend-00026-kij`. No paid fitting-room route or V2 media route is exposed there.
 
-## Sprint board
+## Completed sprint board
 
-| ID | Item | Status | Dependency / remaining work | Completion evidence required |
-| --- | --- | --- | --- | --- |
-| V2-01 | Create a V2 development branch from the maintained source | Open — ready to start | No external blocker. Choose the branch name and branch from the maintained HEAD, recording the V11 code baseline. | Branch exists locally and remotely, has the correct parent/history, and its starting commit is recorded. |
-| V2-02 | Implement basic Fashion/Wardrobe navigation in Flutter | Open — waiting on V2-01 | Work belongs on the V2 branch. Existing Home, History, Ask Lumi, and Profile navigation must remain usable. | Fashion and Wardrobe screens are reachable; back/tab behavior and existing routes pass widget tests. |
-| V2-03 | Define wardrobe item, reference photo, and saved-look models | Open — waiting on V2-01; ownership design needed | Agree on relationships, user ownership, private asset references, serialization, and deletion behavior alongside V2-04. Model drafts can proceed before infrastructure is provisioned. | Typed models and serialization tests cover IDs, relationships, ownership, timestamps/schema version, and missing/invalid data. |
-| V2-04 | Verify authentication and private image-storage approach | Open — architecture and verification needed | Current app has no verified end-user login/token enforcement. No dedicated user-image bucket or user-isolation tests were found. Select and validate the identity/storage approach. | Documented decision plus tests proving owner access, cross-user denial, unauthenticated denial, private object access, expiry, and deletion/retention behavior. |
-| V2-05 | Document provider-key rotation dependencies | Open — initial notes exist; ownership unresolved | The owner is unsure whether the existing key is shared. Complete the dependency inventory and reviewed replacement/revocation sequence; see below. Documenting known dependencies can proceed now. | Dependency checklist identifies affected apps/owners, credential access, replacement version, staging verification, rollback, and the condition for revoking the original key. |
-| V2-06 | Preserve a tested V11 rollback path | Open — restore procedure and drill needed | The tested V11 source and image exist. A pinned rollback manifest/release and a restore drill are still outstanding. | Retained immutable image and source reference; runtime/secret/policy references; an isolated staging restore drill with recorded results and no reset of shared spend counters. |
+| ID | Item | Status | Completion evidence |
+| --- | --- | --- | --- |
+| V2-01 | Create a V2 development branch from the maintained source | Complete | `development/v2` exists locally and remotely, with maintained commit `78cd6ee` as its starting point. |
+| V2-02 | Implement basic Fashion/Wardrobe navigation in Flutter | Complete | Fashion is reachable from the app shell; Wardrobe, Reference photos, and Saved looks have working routes/back paths. Existing destinations remain reachable. Navigation tests include a 320px phone layout. |
+| V2-03 | Define wardrobe item, reference photo, and saved-look models | Complete | Typed, versioned JSON records validate IDs, owner relationships, timestamps, consent/expiry, image kinds and saved-look references. Serialization and invalid/cross-user data tests pass. |
+| V2-04 | Verify authentication and private image-storage approach | Complete — approach verified | Firebase Auth verification and backend-mediated private GCS access passed emulator and real private-bucket acceptance. Owner-only access, invalid/expired/disabled sessions, expiry and deletion were tested. Production sign-in/upload activation remains future integration work. |
+| V2-05 | Document provider-key rotation dependencies | Complete — documentation delivered | Dedicated dependency inventory, responsible roles, unknown consumers, replacement/staging sequence, secret versioning and rollback conditions are documented. The original shared key was not revoked. |
+| V2-06 | Preserve a tested V11 rollback path | Complete | Source tag, immutable image tag/KEEP policy, restore manifest/helper, six restore-plan tests and an actual private Cloud Run restore drill are preserved. No production traffic, paid calls, or budget counters were changed by the drill. |
 
-## Blockers and decisions
+## Evidence
 
-### B1 — End-user identity and private image ownership are unverified
+All implementation links below explicitly target the V2 branch, so this dashboard can also be read from the stable branch.
 
-A service account and Secret Manager protect backend infrastructure; they do not authenticate app users or enforce ownership of wardrobe photos. The current client uses local scan history. Wardrobe item, reference photo, and saved-look persistence are not implemented.
+- [Fashion/Wardrobe screens](https://github.com/pvishnoi422/Vyoora/blob/development/v2/lib/screens/fashion/fashion_screen.dart) and [navigation tests](https://github.com/pvishnoi422/Vyoora/blob/development/v2/test/fashion_navigation_test.dart).
+- [Domain models](https://github.com/pvishnoi422/Vyoora/blob/development/v2/lib/models/fashion/domain.dart) and [model tests](https://github.com/pvishnoi422/Vyoora/blob/development/v2/test/fashion_models_test.dart).
+- [Auth/private-image decision](https://github.com/pvishnoi422/Vyoora/blob/development/v2/docs/v2/AUTH_AND_PRIVATE_IMAGES.md) and [recorded real-bucket/emulator verification](https://github.com/pvishnoi422/Vyoora/blob/development/v2/docs/v2/evidence/auth-storage-verification.json).
+- [Provider-key dependency document](https://github.com/pvishnoi422/Vyoora/blob/development/v2/docs/v2/PROVIDER_KEY_ROTATION.md).
+- [V11 rollback runbook](https://github.com/pvishnoi422/Vyoora/blob/development/v2/docs/v2/V11_ROLLBACK.md), [manifest](https://github.com/pvishnoi422/Vyoora/blob/development/v2/ops/rollback/v11.json) and [private restore-drill evidence](https://github.com/pvishnoi422/Vyoora/blob/development/v2/docs/v2/evidence/v11-rollback-drill.json).
 
-The two current project buckets are build/source buckets: `run-sources-vyoora-backend-us-central1` and `vyoora-backend_cloudbuild`. No dedicated private wardrobe/reference-image bucket was found. Its access controls, object naming, server-side authorization, and lifecycle remain to be designed and tested. Existing build buckets should not be treated as the user-photo store.
+## Validation status
 
-**Unblocks:** final model ownership/storage fields, persistent wardrobe/photo features, and any paid fitting-room release. Basic navigation and model drafts can proceed independently on the V2 branch.
+- Flutter: 15 tests passed; release web build passed; analyzer reports no errors, with existing notices/warnings retained.
+- Auth/private images: 14 tests passed and one memory-only duplicate case skipped, using synthetic accounts and a real private verification bucket. All synthetic images were removed.
+- V11 recovery: six restore-plan tests and the private Cloud Run restore drill passed. The retained image is protected by a KEEP policy.
+- Hosted CI: publication and final run link pending. The workflow now covers the V2 branch, Flutter, backend/restore plans, container checks and authentication-emulator verification.
 
-### B2 — The original provider key's other consumers are unknown
+## Remaining operational dependencies and release gates
 
-The existing key was copied into Secret Manager; it was not rotated or revoked. Historical revisions/artifacts may retain copies. The owner has not confirmed which other applications use it.
+These do not reopen the six completed foundation items:
 
-The rotation dependency document must capture:
+1. **Original key retirement:** the owner is unsure which other applications use it. Consumer discovery/coordination is still required before revocation. The dependency document is complete; rotation itself was not this sprint item.
+2. **Production identity/media integration:** register/configure the real auth application, wire verified sessions into Flutter and the V2 backend, apply privacy-approved retention, and test real production provider configuration before customer photos are enabled. The approach is verified; no production login/upload feature is claimed.
+3. **Paid try-on release:** select the provider/model, verify bounded cost reservations, and implement verified user entitlements/payment authorization before exposing any paid endpoint.
+4. **Client distribution:** V2 has been built and tested, not distributed through app stores. Existing V11 service traffic remains unchanged.
 
-1. Provider account/project owner and access to create a dedicated Vyoora replacement key.
-2. Inventory of existing-key consumers and the people responsible for their migration.
-3. Intended permissions/models for the replacement and a new Secret Manager version.
-4. A staging rollout and controlled acceptance check using the replacement.
-5. A rollback procedure that keeps valid credentials and the existing shared budget ledger.
-6. Verification that other consumers have migrated before revoking the original key.
-
-**Blocker:** revocation of the original key awaits consumer/owner confirmation. Creating an isolated replacement can be planned independently; the key must never be pasted into chat or Git. The documentation item remains open until its dependency checklist is reviewed.
-
-### B3 — A tested live V11 baseline exists; the rollback drill is outstanding
-
-Verified retained image:
-
-```text
-us-central1-docker.pkg.dev/vyoora-backend/cloud-run-source-deploy/vyoora-backend@sha256:fe35748978a128bc462dc9da247f7414f9ae8c3d69c5eee64cd465939ffc3a36
-```
-
-A rollback manifest should pin the source/image, runtime identity/configuration, and an approved valid Secret Manager version. It must preserve the shared policy and ledger, including reservations already consumed. If keys rotate, an invalidated old key must not become a rollback dependency.
-
-Run a restore drill on isolated staging and record health, explicit failure states, guard enforcement, and any approved paid acceptance call. Verify image retention and recoverability before relying on the path. Avoid an unguarded V10 revision as a security rollback.
-
-**Release gate:** the V11 rollback path must be demonstrated before a V2 backend replaces production. This does not prevent creating the V2 branch or developing navigation.
-
-## Suggested execution order
-
-1. Record/pin the V11 baseline and create the V2 branch (V2-06 preparation, V2-01).
-2. Draft models and the auth/private-storage decision together (V2-03, V2-04).
-3. Implement and test Fashion/Wardrobe navigation (V2-02).
-4. Complete the key dependency checklist and coordinate credential isolation (V2-05).
-5. Run and record the V11 rollback drill before a V2 production release (V2-06).
-
-No external blocker was found for starting the V2 branch, navigation scaffolding, or model drafts. Authentication/private storage and tested rollback remain release gates; unknown key consumers block safe revocation.
-
-## Evidence and related documents
-
-- Repository branches, default branch, write permission, and V11 CI were rechecked for this update. No V2 development branch was present.
-- Production traffic and retention of the immutable V11 image were rechecked without changing cloud resources.
-- [`HomeShell`](../lib/screens/home_shell.dart) currently contains the four existing tabs; Fashion/Wardrobe navigation is absent.
-- [`StorageService`](../lib/services/storage_service.dart) handles local scan history; [`pubspec.yaml`](../pubspec.yaml) has no end-user auth integration.
-- [Consolidation](CONSOLIDATION.md), [security controls](SECURITY.md), [rollout and emergency pause](ROLLOUT.md), and [baseline validation](VALIDATION.md).
-
-The earlier security/rollout documents were written before production activation. This dashboard records the subsequently verified live V11 state; it does not imply that V2 work, credential rotation, client distribution, or a rollback drill has been completed.
+There is no remaining implementation blocker for the six requested sprint foundations. Future deployment, original-key revocation, and paid fitting-room work retain the explicit gates above.
