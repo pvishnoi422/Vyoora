@@ -7,3 +7,7 @@
 !gunicorn.conf.py
 !requirements.txt
 !requirements.lock
+!media_security.py
+!wardrobe.py
+!wardrobe_app.py
+!requirements.wardrobe.txt

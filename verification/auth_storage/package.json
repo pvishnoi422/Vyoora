@@ -2,7 +2,8 @@
   "name": "vyoora-v2-auth-verification",
   "private": true,
   "scripts": {
-    "test": "firebase emulators:exec --only auth --project demo-vyoora-v2 \"python -m pytest . -q\""
+    "test": "firebase emulators:exec --only auth --project demo-vyoora-v2 \"python -m pytest . -q\"",
+    "start": "firebase emulators:start --only auth --project demo-vyoora-v2"
   },
   "devDependencies": {
     "firebase-tools": "15.34.1"

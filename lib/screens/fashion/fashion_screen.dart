@@ -65,19 +65,6 @@ class _Destination extends StatelessWidget {
   );
 }
 
-class WardrobeScreen extends StatelessWidget {
-  const WardrobeScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const _CollectionScreen(
-    title: 'Wardrobe',
-    icon: Icons.checkroom_outlined,
-    message: 'Your wardrobe starts here',
-    description:
-        'Keep your garments organized by category, color, and private photos.',
-    showCategories: true,
-  );
-}
-
 class ReferencePhotosScreen extends StatelessWidget {
   const ReferencePhotosScreen({super.key});
   @override
@@ -106,13 +93,12 @@ class SavedLooksScreen extends StatelessWidget {
 class _CollectionScreen extends StatelessWidget {
   final String title, message, description;
   final IconData icon;
-  final bool showCategories, showWardrobeLink;
+  final bool showWardrobeLink;
   const _CollectionScreen({
     required this.title,
     required this.message,
     required this.description,
     required this.icon,
-    this.showCategories = false,
     this.showWardrobeLink = false,
   });
   @override
@@ -126,21 +112,6 @@ class _CollectionScreen extends StatelessWidget {
         Text(message, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 12),
         Text(description),
-        if (showCategories) ...[
-          const SizedBox(height: 24),
-          const Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              Chip(label: Text('Tops')),
-              Chip(label: Text('Bottoms')),
-              Chip(label: Text('Dresses')),
-              Chip(label: Text('Outerwear')),
-              Chip(label: Text('Shoes')),
-              Chip(label: Text('Accessories')),
-            ],
-          ),
-        ],
         if (showWardrobeLink) ...[
           const SizedBox(height: 24),
           OutlinedButton(

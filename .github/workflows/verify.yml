@@ -67,3 +67,7 @@ jobs:
       - run: npm ci --prefix verification/auth_storage --no-audit --no-fund
       - name: Verify authenticated owner-only access with the local emulator
         run: npm test --prefix verification/auth_storage
+      - name: Build isolated wardrobe runtime
+        run: |
+          docker build -f backend/Dockerfile.wardrobe -t vyoora-wardrobe-test backend
+          docker run --rm --entrypoint python vyoora-wardrobe-test -c "from pathlib import Path; import os; assert os.getuid() != 0; assert not list(Path('/app').rglob('.env*')); assert not Path('/app/provider.py').exists(); import wardrobe"

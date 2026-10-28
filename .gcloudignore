@@ -8,3 +8,8 @@
 !backend/safety.py
 !backend/gunicorn.conf.py
 !backend/requirements.lock
+!backend/Dockerfile.wardrobe
+!backend/media_security.py
+!backend/wardrobe.py
+!backend/wardrobe_app.py
+!backend/requirements.wardrobe.txt

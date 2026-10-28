@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/fashion/fashion_screen.dart';
+import '../screens/fashion/wardrobe_screen.dart';
 
 Map<String, WidgetBuilder> get fashionRoutes => {
   '/fashion': (_) => const FashionScreen(),

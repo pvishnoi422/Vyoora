@@ -8,3 +8,8 @@
 !safety.py
 !gunicorn.conf.py
 !requirements.lock
+!Dockerfile.wardrobe
+!media_security.py
+!wardrobe.py
+!wardrobe_app.py
+!requirements.wardrobe.txt
