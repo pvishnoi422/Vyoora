@@ -73,9 +73,20 @@ def test_atomic_budget_across_multiple_workers(guard):
 
 def test_concurrent_idempotency_reserves_once(guard):
     g, now = guard
+    def submit(_):
+        try: return g.admit('actor-0', 'same-request', 'shirt', 'photo')
+        except ServiceError as error:
+            # A contender may fail closed before the winner commits. Recover
+            # with the identical request after contention, never a new ID.
+            assert error.code == 'controls_unavailable'
+            return None
     with ThreadPoolExecutor(max_workers=6) as pool:
-        jobs = list(pool.map(lambda _: g.admit('actor-0', 'same-request', 'shirt', 'photo'), range(6)))
+        results = list(pool.map(submit, range(6)))
+    jobs = [job for job in results if job is not None]
+    assert jobs
     assert {j['id'] for j in jobs} == {'same-request'}
+    for _ in results:
+        assert g.admit('actor-0', 'same-request', 'shirt', 'photo')['id'] == 'same-request'
     assert g.controls.document('day_20261028').get().to_dict()['reserved_micro_usd'] == TRYON_RESERVATION
     assert len(list(g.jobs.stream())) == 1
     with pytest.raises(ServiceError) as error: g.admit('actor-0', 'same-request', 'different-shirt', 'photo')
