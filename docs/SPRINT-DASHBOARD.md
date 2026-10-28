@@ -2,11 +2,12 @@
 
 Updated: October 27, 2026 (America/New_York).
 
-**Sprint implementation: 6 of 6 items complete.** Hosted verification of the published V2 change is tracked separately below. V2 foundations remain on the development branch; production continues to run V11.
+**Sprint progress: 6 of 6 items complete. Hosted verification passed.** V2 foundations remain on the development branch; production continues to run V11.
 
 ## Source and release separation
 
 - Stable branch: [`maintenance/secure-foundation`](https://github.com/pvishnoi422/Vyoora/tree/maintenance/secure-foundation).
+- Review: [V2 foundation pull request #2](https://github.com/pvishnoi422/Vyoora/pull/2).
 - V2 branch: [`development/v2`](https://github.com/pvishnoi422/Vyoora/tree/development/v2), created from maintained commit `78cd6eecff628d69c40a16190bec0c7b109d10cd`.
 - Pinned V11 source: [`v11-rollback-2026-10-27`](https://github.com/pvishnoi422/Vyoora/tree/v11-rollback-2026-10-27), code commit `481824d`.
 - Production remains 100% on guarded V11 revision `vyoora-backend-00026-kij`. No paid fitting-room route or V2 media route is exposed there.
@@ -37,7 +38,8 @@ All implementation links below explicitly target the V2 branch, so this dashboar
 - Flutter: 15 tests passed; release web build passed; analyzer reports no errors, with existing notices/warnings retained.
 - Auth/private images: 14 tests passed and one memory-only duplicate case skipped, using synthetic accounts and a real private verification bucket. All synthetic images were removed.
 - V11 recovery: six restore-plan tests and the private Cloud Run restore drill passed. The retained image is protected by a KEEP policy.
-- Hosted CI: publication and final run link pending. The workflow now covers the V2 branch, Flutter, backend/restore plans, container checks and authentication-emulator verification.
+- Hosted CI: [all three jobs passed](https://github.com/pvishnoi422/Vyoora/actions/runs/40608623470) for tested code commit `2d6d9cc`: Flutter, backend/recovery, and V2 authentication/security. [PR verification](https://github.com/pvishnoi422/Vyoora/actions/runs/40608740447) also passed.
+- Recovery bundle: [published V11 rollback release](https://github.com/pvishnoi422/Vyoora/releases/tag/v11-rollback-2026-10-27) contains the manifest, helpers and recorded drill result.
 
 ## Remaining operational dependencies and release gates
 
