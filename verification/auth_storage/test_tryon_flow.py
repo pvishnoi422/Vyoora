@@ -13,6 +13,8 @@ from wardrobe import GCSWardrobe, create_wardrobe_app, normalize_image
 from tryon import TryOnService
 from tryon_media import TryOnMedia, CONSENT_VERSION
 from safety import TryOnGuard, ServiceError, TRYON_CONTROL_COLLECTION, TRYON_JOB_COLLECTION
+from saved_looks import SavedLooks
+from fake_bucket import FakeBucket
 
 pytestmark=pytest.mark.skipif(not os.environ.get('FIRESTORE_EMULATOR_HOST'),reason='Isolated Firestore emulator required')
 
@@ -41,6 +43,10 @@ class MemoryMedia:
         if (uid,i) not in self.previews:raise AccessDenied('not_found',404)
         return self.previews[(uid,i)]
     def delete_preview(self,uid,i):self.previews.pop((uid,i),None)
+    def delete_all(self,uid):
+        for values in (self.photos,self.previews):
+            for key in list(values):
+                if key[0]==uid:values.pop(key,None)
 
 
 @pytest.fixture(params=['memory']+(['gcs'] if os.environ.get('VYOORA_V2_VERIFY_BUCKET') else []))
@@ -65,14 +71,19 @@ def flow(setup,request):
             if (uid,i) not in wardrobe.items:raise AccessDenied('not_found',404)
             return wardrobe.items[(uid,i)][0]
         wardrobe.item=item;media=MemoryMedia(lambda:now[0])
+        def delete_all(uid):
+            for key in list(wardrobe.items):
+                if key[0]==uid:wardrobe.items.pop(key,None)
+        wardrobe.delete_all=delete_all
     calls=[]
     def provider(person,garment,**kw):kw['guard'].start_attempt(kw['job_key']);calls.append((person,garment));return output(),'image/png'
-    service=TryOnService(g,media,wardrobe,None,'demo-vyoora',provider=provider)
+    looks=SavedLooks(bucket if request.param=='gcs' else FakeBucket(), clock=lambda:now[0])
+    service=TryOnService(g,media,wardrobe,None,'demo-vyoora',provider=provider,looks=looks)
     app=create_wardrobe_app(identity,wardrobe,tryon=service);api=app.test_client()
     yield api,people,service,now,calls
     if request.param=='gcs':
         for p in people.values():
-            for kind in ('wardrobe','reference-photos','try-on'):
+            for kind in ('wardrobe','reference-photos','try-on','saved-looks'):
                 for blob in bucket.list_blobs(prefix=f'{kind}/{p["uid"]}/'):blob.delete()
     client.close()
 

@@ -169,7 +169,31 @@ class TryOnGuard:
         return data
 
     def revoke_reference(self, uid, ref_id):
-        self.reference_ref(uid, ref_id).set({'active': False, 'ownerId': uid}, merge=True)
+        self.reference_ref(uid, ref_id).set({'active': False, 'ownerId': uid,
+            'expires_at': self.clock()+timedelta(days=65)}, merge=True)
+
+    def check_saved_reference(self, uid, ref_id):
+        # Saved outputs have their own 30-day lifetime. Natural source expiry
+        # is allowed, but an explicit revocation always wins, even if cleanup fails.
+        data = self.reference_ref(uid, ref_id).get().to_dict() or {}
+        if data and (data.get('ownerId') != uid or data.get('active') is not True):
+            raise ServiceError('reference_revoked', 'This saved look is no longer available.', 410)
+
+    def check_account_access(self, uid):
+        if (self.controls.document('member_'+self.actor(uid)).get().to_dict() or {}).get('deleting'):
+            raise ServiceError('account_deleting', 'Account deletion is pending. Retry Delete account to finish.', 410)
+
+    def begin_account_deletion(self, uid):
+        self.controls.document('member_'+self.actor(uid)).set({'enabled': False, 'deleting': True,
+            'expires_at': self.clock()+timedelta(days=65)}, merge=True)
+
+    def delete_account_records(self, uid):
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        for job in self.jobs.where(filter=FieldFilter('ownerId','==',uid)).stream():
+            self.cancel(uid, job.to_dict()['id'])
+            job.reference.delete()
+        for ref in self.controls.where(filter=FieldFilter('ownerId','==',uid)).stream():
+            ref.reference.delete()
 
     def job_ref(self, uid, job_id):
         import re

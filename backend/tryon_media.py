@@ -81,6 +81,11 @@ class TryOnMedia:
     def delete_preview(self, uid, job_id):
         self._delete(self.key(uid, 'try-on', job_id))
 
+    def delete_all(self, uid):
+        for kind in ('reference-photos', 'try-on'):
+            for blob in self.bucket.list_blobs(prefix=f'{kind}/{uid}/', timeout=30):
+                blob.delete(if_generation_match=blob.generation, if_metageneration_match=blob.metageneration, timeout=30)
+
     def _delete(self, key):
         try:
             blob = self.bucket.blob(key); blob.reload(timeout=30)

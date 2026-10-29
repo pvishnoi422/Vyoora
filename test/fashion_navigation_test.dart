@@ -55,16 +55,16 @@ void main() {
       expect(find.text('Open wardrobe'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Saved looks'));
-      await tester.tap(find.text('Saved looks'));
+      await tester.ensureVisible(find.text('My Looks'));
+      await tester.tap(find.text('My Looks'));
       await tester.pumpAndSettle();
-      expect(find.text('No saved looks yet'), findsOneWidget);
-      await tester.tap(find.text('Explore wardrobe'));
+      expect(find.text('Open wardrobe'), findsOneWidget);
+      await tester.tap(find.text('Open wardrobe'));
       await tester.pumpAndSettle();
       expect(find.text('Your wardrobe starts here'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('No saved looks yet'), findsOneWidget);
+      expect(find.text('Open wardrobe'), findsOneWidget);
     },
   );
   testWidgets(

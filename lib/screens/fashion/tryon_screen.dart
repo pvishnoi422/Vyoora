@@ -7,6 +7,8 @@ import '../../services/tryon_repository.dart';
 import '../../services/wardrobe_session.dart';
 import '../../services/wardrobe_repository.dart';
 import 'tryon_widgets.dart';
+import 'saved_looks_screen.dart';
+import 'look_actions.dart';
 
 class TryOnScreen extends StatefulWidget {
   final String? initialGarmentId;
@@ -446,6 +448,15 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
             const Text(
               'A visual suggestion, not a fit or sizing guarantee. Your preview expires with its reference photo.',
             ),
+            SaveLookButton(
+              key: ValueKey('save-${job.id}'),
+              jobId: job.id,
+              repository: widget.repository,
+            ),
+            LookExportActions(
+              key: ValueKey('export-${job.id}'),
+              load: () => widget.repository.preview(job.id),
+            ),
           ],
           if (job.expired)
             const Text(
@@ -486,7 +497,7 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Pair a private reference photo with a saved garment. Google Vertex AI creates one preview when you choose Generate.',
+              'Pair a private reference photo with a saved garment. Vyoora creates one AI preview when you choose Generate.',
             ),
             const SizedBox(height: 16),
             if (loading || uploading) const LinearProgressIndicator(),

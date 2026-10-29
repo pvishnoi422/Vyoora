@@ -14,6 +14,7 @@ import 'config.dart';
 import 'models/analysis_outcome.dart';
 import 'result_screen.dart';
 import 'services/storage_service.dart';
+import 'widgets/ai_processing_consent.dart';
 import 'widgets/preview_image.dart';
 import 'widgets/scan_zone.dart';
 import 'widgets/particle_bg.dart';
@@ -31,6 +32,7 @@ class _UploadScreenState extends State<UploadScreen> {
   XFile? _picked;
   bool _isPicking = false;
   bool _isUploading = false;
+  bool _confirmingProcessing = false;
   String? _error;
   String _statusMsg = '';
   Timer? _statusTimer;
@@ -175,7 +177,11 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _analyze() async {
-    if (_picked == null || _isUploading) return;
+    if (_picked == null || _isUploading || _confirmingProcessing) return;
+    _confirmingProcessing = true;
+    final approved = await confirmSkincareProcessing(context);
+    _confirmingProcessing = false;
+    if (!mounted || !approved) return;
     setState(() {
       _isUploading = true;
       _error = null;

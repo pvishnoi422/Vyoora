@@ -5,6 +5,7 @@ import '../../models/fashion/domain.dart';
 import '../../services/wardrobe_repository.dart';
 import '../../services/wardrobe_session.dart';
 import '../../services/tryon_repository.dart' show tryOnCategories;
+import 'account_actions.dart';
 
 String wardrobeError(Object error) => error is WardrobeFailure
     ? error.message
@@ -379,6 +380,7 @@ class _WardrobeCollectionState extends State<_WardrobeCollection> {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const Text('Your clothes. Your private collection.'),
+                  AccountActions(repository: widget.repository),
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),

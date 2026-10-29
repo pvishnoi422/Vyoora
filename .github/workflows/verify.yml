@@ -42,7 +42,7 @@ jobs:
           done
           docker logs firestore
           exit 1
-      - run: python -m pytest backend/tests verification/test_rollback_plan.py -q
+      - run: python -m pytest backend/tests verification/test_rollback_plan.py verification/test_ios_release_config.py -q
       - run: pip-audit -r backend/requirements.lock
       - name: Build backend and verify runtime exclusions
         run: |

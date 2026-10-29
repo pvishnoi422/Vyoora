@@ -59,6 +59,7 @@ if args.try_on:
     from safety import TryOnGuard, TRYON_DAY_CAP, TRYON_MONTH_CAP, TRYON_PER_USER_DAY
     from tryon_media import TryOnMedia
     from tryon import TryOnService
+    from saved_looks import SavedLooks
     os.environ['TRYON_ENABLED'] = 'true'
     guard = TryOnGuard(firestore.Client(project='vyoora-backend', credentials=cloud_credentials))
     # Create once; never reset existing budgets, quotas, membership or kill switch.
@@ -69,7 +70,7 @@ if args.try_on:
     for name in ('alice', 'bob'):
         try: guard.controls.document('member_'+guard.actor('local-'+name)).create({'enabled': True})
         except AlreadyExists: pass
-    tryon = TryOnService(guard, TryOnMedia(bucket), wardrobe, cloud_credentials, 'vyoora-backend')
+    tryon = TryOnService(guard, TryOnMedia(bucket), wardrobe, cloud_credentials, 'vyoora-backend', looks=SavedLooks(bucket))
     threading.Thread(target=tryon.run_worker, daemon=True, name='private-tryon-worker').start()
 app = create_wardrobe_app(identity, wardrobe, tryon=tryon,
     origins=['http://127.0.0.1:7357', 'http://localhost:7357'])

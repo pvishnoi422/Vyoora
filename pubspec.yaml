@@ -2,7 +2,7 @@ name: vyoora
 description: "Vyoora - AI-powered skincare ingredient analysis app"
 publish_to: 'none'
 
-version: 1.0.0+16
+version: 2.0.0+17
 
 environment:
   sdk: ^3.8.1

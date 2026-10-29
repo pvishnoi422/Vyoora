@@ -11,9 +11,10 @@ SUPPORTED_CATEGORIES = {'top', 'bottom', 'dress', 'outerwear'}
 
 
 class TryOnService:
-    def __init__(self, guard, media, wardrobe, credentials, project, provider=virtual_tryon):
+    def __init__(self, guard, media, wardrobe, credentials, project, provider=virtual_tryon, looks=None):
         self.guard, self.media, self.wardrobe = guard, media, wardrobe
         self.credentials, self.project, self.provider = credentials, project, provider
+        self.looks = looks
         self.stop = threading.Event()
 
     @staticmethod
@@ -22,14 +23,19 @@ class TryOnService:
             'createdAt', 'expiresAt', 'errorCode')} | {'aiGenerated': job.get('status') == 'succeeded'}
 
     def reference(self, uid, ref_id, *, data=False):
+        self.guard.check_account_access(uid)
         self.guard.check_reference(uid, ref_id)
         return self.media.reference(uid, ref_id, data=data)
 
     def upload_reference(self, uid, stream):
+        self.guard.check_account_access(uid)
         record = self.media.upload_reference(uid, stream)
-        try: self.guard.grant_reference(uid, record)
+        try:
+            self.guard.grant_reference(uid, record)
+            self.guard.check_account_access(uid)
         except Exception:
             self.media.delete_reference(uid, record['id'])
+            self.guard.reference_ref(uid, record['id']).delete()
             raise
         return record
 
@@ -37,6 +43,7 @@ class TryOnService:
         # Revoke FIRST. Even if file deletion fails, all subsequent reads,
         # admission, provider dispatch and result publication fail closed.
         self.guard.revoke_reference(uid, ref_id)
+        if self.looks is not None: self.looks.delete_reference(uid, ref_id)
         for job in self.guard.for_reference(uid, ref_id):
             self.cancel(uid, job['id'])
         self.media.delete_reference(uid, ref_id)
@@ -68,6 +75,35 @@ class TryOnService:
         if job['status'] != 'succeeded': raise ServiceError('preview_unavailable', 'This preview is not available.', 409)
         self.reference(uid, job['referenceId'])
         return self.media.preview(uid, job_id)
+
+    def saved_look(self, uid, item_id, *, image=False):
+        record = self.looks.get(uid, item_id, image=image)
+        self.guard.check_saved_reference(uid, (record[0] if image else record)['referencePhoto']['id'])
+        return record
+
+    def save_look(self, uid, job_id, title):
+        job = self.guard.get(uid, job_id)
+        data, mime = self.preview(uid, job_id)
+        record = self.looks.save(uid, job, title, data, mime)
+        try:
+            self.guard.check_account_access(uid)
+            self.reference(uid, job['referenceId'])
+            if self.guard.get(uid, job_id)['status'] != 'succeeded':
+                raise ServiceError('preview_unavailable', 'This preview is not available.', 409)
+        except Exception:
+            self.looks.delete(uid, job_id)
+            raise
+        return record
+
+    def delete_account(self, uid, identity):
+        # First block new requests and provider dispatch. Cleanup is retryable;
+        # keep the identity until every Vyoora object has been removed.
+        self.guard.begin_account_deletion(uid)
+        if self.looks is not None: self.looks.delete_all(uid)
+        self.media.delete_all(uid)
+        self.wardrobe.delete_all(uid)
+        self.guard.delete_account_records(uid)
+        identity.delete_user(uid)
 
     def process_one(self, key):
         job = self.guard.claim(key)
@@ -105,7 +141,7 @@ class TryOnService:
             self.stop.wait(1)
 
 
-def register_tryon_routes(app, user, service):
+def register_tryon_routes(app, user, service, *, identity=None):
     @app.errorhandler(ServiceError)
     def controlled(error):
         return jsonify(status='error', code=error.code), error.http_status
@@ -175,3 +211,48 @@ def register_tryon_routes(app, user, service):
     def preview(job_id):
         data, mime = service.preview(user(), safe_id(job_id))
         return Response(data, mimetype=mime)
+
+    if service.looks is not None:
+        @app.delete('/v2/account')
+        def delete_account():
+            uid = user(allow_deleting=True)
+            if request.get_json(silent=True) != {'confirmation': 'delete-my-account'}:
+                raise AccessDenied('deletion_confirmation_required', 400)
+            identity.require_recent(request.headers['Authorization'][7:])
+            service.delete_account(uid, identity)
+            return '', 204
+
+        @app.route('/v2/saved-looks', methods=['GET', 'POST'])
+        def saved_looks():
+            uid = user()
+            if request.method == 'GET':
+                page = request.args.get('pageToken')
+                if page and len(page) > 4096: raise AccessDenied('invalid_page', 400)
+                records, next_page = service.looks.list(uid, page)
+                visible = []
+                for record in records:
+                    try: service.guard.check_saved_reference(uid, record['referencePhoto']['id'])
+                    except ServiceError as error:
+                        if error.code == 'reference_revoked': continue
+                        raise
+                    visible.append(record)
+                return jsonify(items=visible, nextPageToken=next_page)
+            data = request.get_json(silent=True)
+            if (not isinstance(data, dict) or set(data) != {'jobId', 'title', 'consentVersion'} or
+                data.get('consentVersion') != 'saved-looks-v1' or not isinstance(data.get('title'), str) or
+                not 1 <= len(data['title'].strip()) <= 100):
+                raise AccessDenied('saved_look_consent_required', 400)
+            return jsonify(item=service.save_look(uid, safe_id(data['jobId']), data['title'].strip())), 201
+
+        @app.route('/v2/saved-looks/<item_id>', methods=['GET', 'DELETE'])
+        def saved_look(item_id):
+            uid = user(); item_id = safe_id(item_id)
+            if request.method == 'DELETE':
+                service.looks.delete(uid, item_id)
+                return '', 204
+            return jsonify(item=service.saved_look(uid, item_id))
+
+        @app.get('/v2/saved-looks/<item_id>/image')
+        def saved_look_image(item_id):
+            _, data, mime = service.saved_look(user(), safe_id(item_id), image=True)
+            return Response(data, mimetype=mime)

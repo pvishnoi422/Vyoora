@@ -84,6 +84,14 @@ class WardrobeRepository {
           'idempotency_conflict' =>
             'This request belongs to another selection. Refresh before trying again.',
           'preview_unavailable' => 'This preview is not available.',
+          'reference_revoked' =>
+            'This look was removed when its reference photo was deleted.',
+          'saved_look_consent_required' =>
+            'Confirm saving this private look and give it a name.',
+          'account_deleting' =>
+            'Account deletion is pending. Retry Delete account to finish cleanup.',
+          'recent_signin_required' =>
+            'Sign in again before deleting your account.',
           _ =>
             'Your wardrobe could not be updated. Check your connection and try again.',
         },
@@ -92,6 +100,20 @@ class WardrobeRepository {
       );
     }
     return response;
+  }
+
+  Future<void> deleteAccount(String password) async {
+    final owner = session.uid, address = session.email;
+    if (owner == null || address == null)
+      throw const WardrobeFailure('Sign in before deleting your account.');
+    await session.signIn(address, password);
+    if (session.uid != owner)
+      throw const WardrobeFailure('Your account changed.');
+    final request = http.Request('DELETE', Uri.parse('$base/v2/account'))
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({'confirmation': 'delete-my-account'});
+    await sendAuthenticated(request);
+    session.signOut();
   }
 
   WardrobeItem _item(Object? data) {

@@ -21,6 +21,12 @@ class TryOnAvailability {
   const TryOnAvailability(this.enabled, this.remainingToday, this.dailyLimit);
 }
 
+class SavedLooksPage {
+  final List<SavedLook> items;
+  final String? nextPageToken;
+  const SavedLooksPage(this.items, this.nextPageToken);
+}
+
 class TryOnRepository extends WardrobeRepository {
   TryOnRepository({required super.session, super.client, super.base});
   Uri _uri(String path) => Uri.parse('$base/v2/$path');
@@ -142,4 +148,51 @@ class TryOnRepository extends WardrobeRepository {
   Future<Uint8List> preview(String id) async => (await sendAuthenticated(
     http.Request('GET', _uri('try-on/jobs/${checkedId(id, 'id')}/image')),
   )).bodyBytes;
+
+  SavedLook _look(Object? value) {
+    final look = SavedLook.fromJson(Map<String, dynamic>.from(value as Map));
+    if (look.ownerId != session.uid ||
+        look.preview?.imageId != look.id ||
+        look.preview?.expiresAt == null) {
+      throw const WardrobeFailure(
+        'Look ownership or retention could not be verified.',
+      );
+    }
+    return look;
+  }
+
+  Future<SavedLooksPage> looks({String? pageToken}) async {
+    final url = _uri('saved-looks').replace(
+      queryParameters: pageToken == null ? null : {'pageToken': pageToken},
+    );
+    final data =
+        jsonDecode((await sendAuthenticated(http.Request('GET', url))).body)
+            as Map;
+    return SavedLooksPage(
+      (data['items'] as List).map(_look).toList(),
+      data['nextPageToken'] as String?,
+    );
+  }
+
+  Future<SavedLook> saveLook(String jobId, String title) async {
+    final request = http.Request('POST', _uri('saved-looks'))
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({
+        'jobId': checkedId(jobId, 'jobId'),
+        'title': title,
+        'consentVersion': 'saved-looks-v1',
+      });
+    return _look(
+      (jsonDecode((await sendAuthenticated(request)).body) as Map)['item'],
+    );
+  }
+
+  Future<Uint8List> lookImage(String id) async => (await sendAuthenticated(
+    http.Request('GET', _uri('saved-looks/${checkedId(id, 'id')}/image')),
+  )).bodyBytes;
+  Future<void> deleteLook(String id) async {
+    await sendAuthenticated(
+      http.Request('DELETE', _uri('saved-looks/${checkedId(id, 'id')}')),
+    );
+  }
 }

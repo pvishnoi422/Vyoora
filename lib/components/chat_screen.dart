@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../widgets/ai_processing_consent.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
@@ -21,6 +22,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scroll = ScrollController();
   final List<_Msg> _messages = [];
   bool _sending = false;
+  bool _confirmingProcessing = false, _processingConsented = false;
   String? _error;
 
   @override
@@ -39,12 +41,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _send([String? override]) async {
     final text = (override ?? _controller.text).trim();
-    if (text.isEmpty || _sending) return;
+    if (text.isEmpty || _sending || _confirmingProcessing) return;
     if (text.length > 2000) {
       setState(() => _error = 'Message too long.');
       return;
     }
 
+    if (!_processingConsented) {
+      _confirmingProcessing = true;
+      final approved = await confirmSkincareProcessing(context, chat: true);
+      _confirmingProcessing = false;
+      if (!mounted || !approved) return;
+      _processingConsented = true;
+    }
     final historySnapshot = _buildHistory();
     setState(() {
       _messages.add(_Msg(role: 'user', text: text));

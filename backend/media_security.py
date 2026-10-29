@@ -56,6 +56,14 @@ class FirebaseIdentity:
     def close(self):
         firebase_admin.delete_app(self.app)
 
+    def require_recent(self, token):
+        claims = auth.verify_id_token(token, app=self.app, check_revoked=True)
+        if datetime.now(timezone.utc).timestamp()-claims.get('auth_time', 0) > 300:
+            raise AccessDenied('recent_signin_required', 403)
+
+    def delete_user(self, uid):
+        auth.delete_user(uid, app=self.app)
+
 
 class MemoryObjects:
     """Test double with the same immutable-create and delete contract as GCS."""

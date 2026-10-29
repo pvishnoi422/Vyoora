@@ -114,6 +114,10 @@ class GCSWardrobe:
         except PreconditionFailed:
             raise AccessDenied('item_changed_retry', 409) from None
 
+    def delete_all(self, uid):
+        for blob in self.bucket.list_blobs(prefix=self.prefix(uid), timeout=30):
+            blob.delete(if_generation_match=blob.generation, if_metageneration_match=blob.metageneration, timeout=30)
+
 
 def create_wardrobe_app(identity, store, *, origins=(), tryon=None):
     app = Flask(__name__)
@@ -151,11 +155,13 @@ def create_wardrobe_app(identity, store, *, origins=(), tryon=None):
         # Never expose bearer tokens, provider bodies, object data, or credentials.
         return jsonify(status='error', code='storage_unavailable'), 503
 
-    def user():
+    def user(*, allow_deleting=False):
         header = request.headers.get('Authorization', '')
         if not header.startswith('Bearer ') or not header[7:].strip():
             raise AccessDenied('authentication_required', 401)
-        return identity.verify(header[7:])
+        uid = identity.verify(header[7:])
+        if tryon is not None and not allow_deleting: tryon.guard.check_account_access(uid)
+        return uid
 
     @app.get('/healthz')
     def health():
@@ -185,7 +191,12 @@ def create_wardrobe_app(identity, store, *, origins=(), tryon=None):
                     image=dict(ownerId=uid, imageId=item_id, kind='wardrobe'), createdAt=now, updatedAt=now)
         if color:
             item['color'] = color
-        return jsonify(item=store.create(uid, item, data)), 201
+        record = store.create(uid, item, data)
+        try: user() # Fence uploads that raced an account deletion.
+        except Exception:
+            store.delete(uid, item_id)
+            raise
+        return jsonify(item=record), 201
 
     @app.get('/v2/wardrobe/<item_id>/image')
     def image(item_id):
@@ -198,5 +209,5 @@ def create_wardrobe_app(identity, store, *, origins=(), tryon=None):
 
     if tryon is not None:
         from tryon import register_tryon_routes
-        register_tryon_routes(app, user, tryon)
+        register_tryon_routes(app, user, tryon, identity=identity)
     return app

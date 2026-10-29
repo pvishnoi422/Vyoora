@@ -68,7 +68,9 @@ class PrivateImageRef {
       ImageKind.referencePhoto => 'reference-photos',
       ImageKind.savedLook => 'saved-looks',
     };
-    return '$prefix/$ownerId/$imageId.jpg';
+    return kind == ImageKind.savedLook
+        ? '$prefix/$ownerId/$imageId'
+        : '$prefix/$ownerId/$imageId.jpg';
   }
 
   bool isExpired(DateTime now) =>

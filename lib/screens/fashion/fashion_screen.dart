@@ -37,11 +37,15 @@ class FashionScreen extends StatelessWidget {
         ),
         _Destination(
           icon: Icons.bookmark_border,
-          title: 'Saved looks',
+          title: 'My Looks',
           subtitle: 'Keep outfits you want to return to',
           route: '/fashion/saved-looks',
         ),
         const SizedBox(height: 20),
+        TextButton(
+          onPressed: () => Navigator.pushNamed(context, '/fashion/privacy'),
+          child: const Text('Photo privacy'),
+        ),
         const Text(
           'Photo uploads require a verified account. Your photos are never public by default.',
         ),
@@ -67,53 +71,6 @@ class _Destination extends StatelessWidget {
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => Navigator.pushNamed(context, route),
-    ),
-  );
-}
-
-class SavedLooksScreen extends StatelessWidget {
-  const SavedLooksScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const _CollectionScreen(
-    title: 'Saved looks',
-    icon: Icons.bookmark_border,
-    message: 'No saved looks yet',
-    description:
-        'Saved looks will keep their garment references and preview images private to your account.',
-    showWardrobeLink: true,
-  );
-}
-
-class _CollectionScreen extends StatelessWidget {
-  final String title, message, description;
-  final IconData icon;
-  final bool showWardrobeLink;
-  const _CollectionScreen({
-    required this.title,
-    required this.message,
-    required this.description,
-    required this.icon,
-    this.showWardrobeLink = false,
-  });
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Icon(icon, size: 64),
-        const SizedBox(height: 24),
-        Text(message, style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 12),
-        Text(description),
-        if (showWardrobeLink) ...[
-          const SizedBox(height: 24),
-          OutlinedButton(
-            onPressed: () => Navigator.pushNamed(context, '/wardrobe'),
-            child: const Text('Explore wardrobe'),
-          ),
-        ],
-      ],
     ),
   );
 }

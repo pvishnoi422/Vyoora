@@ -30,6 +30,8 @@
 	<string>Take a photo of an ingredient label or garment, or a reference photo for private try-on.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose an ingredient label, garment photo, or reference photo for your private wardrobe and try-on.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save your Vyoora AI-generated outfit preview to Photos when you choose Save to Photos.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

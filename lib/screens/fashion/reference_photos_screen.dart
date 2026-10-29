@@ -100,7 +100,7 @@ class _ReferenceCollectionState extends State<_ReferenceCollection> {
       builder: (context) => AlertDialog(
         title: const Text('Delete this reference photo?'),
         content: const Text(
-          'This blocks new processing, cancels its generations, and permanently removes this photo and its previews from Vyoora. Processing already sent to Google cannot be recalled.',
+          'This blocks new processing, cancels its generations, and permanently removes this photo, its previews and saved looks from Vyoora. Processing already sent to Google cannot be recalled. Photos or shared copies remain outside Vyoora.',
         ),
         actions: [
           TextButton(

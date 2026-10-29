@@ -3,6 +3,8 @@ import '../screens/fashion/fashion_screen.dart';
 import '../screens/fashion/wardrobe_screen.dart';
 import '../screens/fashion/tryon_screen.dart';
 import '../screens/fashion/reference_photos_screen.dart';
+import '../screens/fashion/saved_looks_screen.dart';
+import '../screens/fashion/photo_privacy_screen.dart';
 
 Map<String, WidgetBuilder> get fashionRoutes => {
   '/fashion': (_) => const FashionScreen(),
@@ -18,4 +20,5 @@ Map<String, WidgetBuilder> get fashionRoutes => {
   },
   '/fashion/reference-photos': (_) => const ReferencePhotosScreen(),
   '/fashion/saved-looks': (_) => const SavedLooksScreen(),
+  '/fashion/privacy': (_) => const PhotoPrivacyScreen(),
 };

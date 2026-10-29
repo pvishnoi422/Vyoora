@@ -33,7 +33,9 @@ def setup():
         token=requests.post(base+'/accounts:signInWithPassword?key=demo-key',json={'email':email,'password':password,'returnSecureToken':True},timeout=10)
         token.raise_for_status();people[name]={'uid':uid,'token':token.json()['idToken']}
     yield identity,people
-    for person in people.values():auth.delete_user(person['uid'],app=identity.app)
+    for person in people.values():
+        try: auth.delete_user(person['uid'],app=identity.app)
+        except auth.UserNotFoundError: pass # Account-deletion tests already removed it.
     identity.close()
 
 

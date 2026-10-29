@@ -71,6 +71,32 @@ def test_atomic_budget_across_multiple_workers(guard):
     assert not list(g.client.collection('vyoora_ai_guard').stream())
 
 
+def test_approved_dollar_caps_persist_across_accounts_and_days(guard):
+    g, now = guard
+    now[0] = datetime(2026, 10, 20, 12, tzinfo=timezone.utc)
+    for n in range(3):
+        g.grant_reference(f'actor-{n}', {'id': 'cap-photo',
+            'expiresAt': (now[0]+timedelta(days=7)).isoformat(), 'consentVersion': 'google-tryon-v1'})
+    for n in range(33):
+        if n and n % 6 == 0:
+            # $0.90 reserved leaves $0.10, insufficient for a $0.15 request.
+            with pytest.raises(ServiceError) as error:
+                g.admit('actor-0', f'day-denied-{n}', 'shirt', 'cap-photo')
+            assert error.value.code == 'tryon_budget_exhausted'
+            day = g.controls.document('day_'+now[0].strftime('%Y%m%d')).get().to_dict()
+            assert day['reserved_micro_usd'] == 900_000
+            now[0] += timedelta(days=1)
+        uid = f'actor-{n % 3}'
+        g.admit(uid, f'cap-{n}', 'shirt', 'cap-photo')
+        g.cancel(uid, f'cap-{n}')
+        now[0] += timedelta(seconds=61)
+    with pytest.raises(ServiceError) as error:
+        g.admit('actor-0', 'month-denied', 'shirt', 'cap-photo')
+    assert error.value.code == 'tryon_budget_exhausted'
+    assert g.controls.document('month_202610').get().to_dict()['reserved_micro_usd'] == 4_950_000
+    assert len(list(g.jobs.stream())) == 33
+
+
 def test_concurrent_idempotency_reserves_once(guard):
     g, now = guard
     def submit(_):

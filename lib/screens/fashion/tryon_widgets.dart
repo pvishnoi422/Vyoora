@@ -188,7 +188,7 @@ class _ReferenceConsentState extends State<_ReferenceConsent> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Use a clear photo of one adult. Your private Vyoora photo expires after seven days and is then deleted automatically. Deleting it now blocks new processing and removes Vyoora’s copy and previews. Google may retain abuse-monitoring logs under its own policies.',
+              'Use a clear photo of one adult. Vyoora uses Google Cloud for private storage and Google’s Gemini image model for try-on processing. Your reference photo and unsaved previews become unavailable after seven days; automatic storage cleanup can take longer. Deleting the reference photo blocks new processing and removes its Vyoora previews and saved looks. Saved looks have a separate 30-day limit. Google may keep processing data for abuse monitoring for up to 30 days; Vyoora cannot delete Google’s logs or recall processing already sent.',
             ),
             CheckboxListTile(
               key: const Key('reference-permission'),
@@ -207,6 +207,10 @@ class _ReferenceConsentState extends State<_ReferenceConsent> {
               title: const Text(
                 'I agree to private storage and processing by Google Vertex AI when I request a try-on.',
               ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/fashion/privacy'),
+              child: const Text('Vyoora photo privacy'),
             ),
             TextButton(
               onPressed: () => launchUrl(
