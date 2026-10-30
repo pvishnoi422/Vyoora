@@ -6,11 +6,9 @@ only, creates two synthetic verified accounts, and never imports the AI service.
 """
 import os
 from pathlib import Path
-import subprocess
 import sys
 import argparse
 import threading
-from datetime import datetime, timedelta, timezone
 
 if os.environ.get('K_SERVICE'):
     raise RuntimeError('Local development only')
@@ -22,16 +20,10 @@ if args.try_on and os.environ.get('FIRESTORE_EMULATOR_HOST'):
 os.environ['FIREBASE_AUTH_EMULATOR_HOST'] = '127.0.0.1:9099'
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
 from firebase_admin import auth
-from google.auth.credentials import Credentials
+from local_cloud_credentials import LocalGcloudCredentials
 from google.cloud import storage
 from media_security import FirebaseIdentity
 from wardrobe import GCSWardrobe, create_wardrobe_app
-
-
-class LocalGcloudCredentials(Credentials):
-    def refresh(self, request):
-        self.token = subprocess.check_output(['gcloud', 'auth', 'print-access-token'], text=True).strip()
-        self.expiry = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=45)
 
 
 identity = FirebaseIdentity('demo-vyoora-v2', allow_emulator=True)
