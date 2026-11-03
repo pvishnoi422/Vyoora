@@ -6,10 +6,11 @@ import os
 
 
 class ServiceError(Exception):
-    def __init__(self, code, message, http_status=503, retry_after=None):
+    def __init__(self, code, message, http_status=503, retry_after=None, *, diagnostic=None):
         super().__init__(message)
         self.code, self.message, self.http_status = code, message, http_status
         self.retry_after = retry_after
+        self.diagnostic = diagnostic
 
 
 # Conservative reservations, not usage estimates or a provider billing meter.
@@ -91,8 +92,8 @@ class FirestoreGuard:
 
 
 # Bounded Gemini 3.1 Flash Image edit: reserve $0.15 for <=$0.137527
-# worst-case generation plus <=$0.009311 coverage review, one candidate per
-# stage and no tools/retries. Combined ceiling $0.146837 < $0.15.
+# worst-case generation plus <=$0.003740 coverage review, one candidate per
+# stage and no tools/retries. Combined ceiling $0.141267 < $0.15.
 # See provider.py for the reviewed US price and fixed token/image ceilings.
 # This ledger NEVER uses skincare AI counters or rewrites older reservations.
 TRYON_RESERVATION = 150_000

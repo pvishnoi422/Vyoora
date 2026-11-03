@@ -73,7 +73,9 @@ TRYON_REGION = 'us'
 TRYON_OUTPUT_TOKENS = 2048
 TRYON_PROMPT_BYTE_LIMIT = 2048
 TRYON_REVIEW_VERSION = 'coverage-v1'
-TRYON_REVIEW_OUTPUT_TOKENS = 96
+TRYON_REVIEW_MODEL = 'gemini-3.1-flash-lite'
+TRYON_REVIEW_OUTPUT_TOKENS = 1024
+TRYON_REVIEW_INPUT_BYTE_LIMIT = 4096
 TRYON_REVIEW_FIELDS = ('coverage_preserved', 'construction_preserved',
     'accessories_preserved', 'non_explicit', 'certain')
 TRYON_REVIEW_PROMPT = (
@@ -200,10 +202,11 @@ def virtual_tryon(person, garment, *, credentials, guard, job_key, project, sess
 def review_tryon(person, garment, preview, *, credentials, guard, job_key, project, session=None):
     """Mandatory independent request, before storing any output. No retry/fallback.
 
-    Same US image model and safety filters as generation; text-only verdict.
-    3 images *1120 + <=2048 text bytes, <=96 output tokens (conservatively
-    billed at $66/M even for text). Combined generation + review ceiling:
-    ceil(137526.4 + 5408*.55 + 96*66) = 146837 microUSD <150000.
+    US multimodal analysis model with supported structured JSON output.
+    3 images at HIGH (1120 tokens each), <=4096 prompt/schema bytes,
+    <=1024 output tokens including thinking. Non-global price $0.275/M
+    input + $1.65/M output. Combined generation + review ceiling:
+    ceil(137526.4 + 7456*.275 + 1024*1.65) = 141267 microUSD <150000.
     Pricing: https://cloud.google.com/model-garden/pricing (2026-11-03).
     A model review is fallible, not a guarantee of safety or fidelity.
     """
@@ -231,17 +234,21 @@ def review_tryon(person, garment, preview, *, credentials, guard, job_key, proje
                 image.verify()
             parts.extend([{'text': label}, {'inlineData': {'mimeType': mime,
                 'data': base64.b64encode(data).decode()}}])
-        if sum(len(p.get('text', '').encode()) for p in parts) > TRYON_PROMPT_BYTE_LIMIT:
+        schema = {'type': 'OBJECT', 'properties': {key: {'type': 'BOOLEAN'}
+            for key in TRYON_REVIEW_FIELDS}, 'required': list(TRYON_REVIEW_FIELDS)}
+        if sum(len(p.get('text', '').encode()) for p in parts) + len(json.dumps(schema).encode()) > TRYON_REVIEW_INPUT_BYTE_LIMIT:
             raise ValueError('Prompt bound')
     except Exception:
         raise ServiceError('preview_review_unavailable', 'The preview could not be checked.', 502) from None
     payload = {'contents': [{'role': 'user', 'parts': parts}], 'generationConfig': {
         'candidateCount': 1, 'maxOutputTokens': TRYON_REVIEW_OUTPUT_TOKENS,
-        'responseModalities': ['TEXT'], 'thinkingConfig': {'thinkingLevel': 'MINIMAL', 'includeThoughts': False}},
+        'responseModalities': ['TEXT'], 'responseMimeType': 'application/json', 'responseSchema': schema,
+        'mediaResolution': 'MEDIA_RESOLUTION_HIGH',
+        'thinkingConfig': {'thinkingLevel': 'MINIMAL', 'includeThoughts': False}},
         'safetySettings': [{'category': c, 'threshold': 'BLOCK_LOW_AND_ABOVE'} for c in (
             'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_HARASSMENT',
             'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT')]}
-    url = f'https://aiplatform.{TRYON_REGION}.rep.googleapis.com/v1/projects/{project}/locations/{TRYON_REGION}/publishers/google/models/{TRYON_MODEL}:generateContent'
+    url = f'https://aiplatform.{TRYON_REGION}.rep.googleapis.com/v1/projects/{project}/locations/{TRYON_REGION}/publishers/google/models/{TRYON_REVIEW_MODEL}:generateContent'
     headers = {'Content-Type': 'application/json', 'X-Goog-User-Project': project}
     client = session or requests.Session()
     try:
@@ -249,7 +256,9 @@ def review_tryon(person, garment, preview, *, credentials, guard, job_key, proje
         guard.start_review_attempt(job_key)
         response = client.post(url, json=payload, headers=headers, timeout=(10, 45), allow_redirects=False, stream=True)
         try:
-            if response.status_code != 200: raise ValueError('Review unavailable')
+            if response.status_code != 200:
+                raise ServiceError('preview_review_unavailable', 'The preview could not be checked.', 502,
+                    diagnostic='review_http_'+str(response.status_code))
             body = bytearray()
             for chunk in response.iter_content(4096):
                 body.extend(chunk)
@@ -259,12 +268,15 @@ def review_tryon(person, garment, preview, *, credentials, guard, job_key, proje
             if result.get('promptFeedback', {}).get('blockReason') or len(candidates) != 1:
                 raise ValueError('Blocked review')
             candidate = candidates[0]
-            if candidate.get('finishReason') != 'STOP': raise ValueError('Incomplete review')
+            if candidate.get('finishReason') != 'STOP':
+                raise ServiceError('preview_review_unavailable', 'The preview could not be checked.', 502,
+                    diagnostic='review_incomplete')
             if any(r.get('blocked') or r.get('probability') in {'LOW', 'MEDIUM', 'HIGH'}
                    for r in candidate.get('safetyRatings', [])):
                 raise ServiceError('preview_rejected', 'This preview was withheld because it could change coverage or be unsafe.', 422)
             output = candidate.get('content', {}).get('parts', [])
-            if len(output) != 1 or set(output[0]) != {'text'}: raise ValueError('Unexpected review output')
+            if len(output) != 1 or 'text' not in output[0] or set(output[0]) - {'text', 'thoughtSignature'}:
+                raise ValueError('Unexpected review output')
             def unique_object(pairs):
                 values = dict(pairs)
                 if len(values) != len(pairs): raise ValueError('Duplicate verdict fields')

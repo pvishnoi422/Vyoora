@@ -1,6 +1,7 @@
 """Durable, authenticated private-test jobs with explicit photo/provider consent."""
 from datetime import datetime, timezone
 import threading
+import logging
 from flask import jsonify, request, Response
 from media_security import AccessDenied
 from safety import ServiceError
@@ -135,6 +136,12 @@ class TryOnService:
                 self.media.delete_preview(uid, job_id)
         except Exception as error:
             code = error.code if isinstance(error, (ServiceError, AccessDenied)) else 'generation_failed'
+            diagnostic = getattr(error, 'diagnostic', None)
+            # Only our own fixed status labels; never provider bodies or photos.
+            if diagnostic in {'review_http_400', 'review_http_401', 'review_http_403',
+                              'review_http_404', 'review_http_429', 'review_http_500',
+                              'review_http_503', 'review_incomplete'}:
+                logging.getLogger(__name__).warning('tryon review failure: %s', diagnostic)
             try:
                 self.media.delete_preview(uid, job_id)
             finally:

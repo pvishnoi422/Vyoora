@@ -398,7 +398,7 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
             Text(
               job.state == TryOnState.queued
                   ? 'Your preview is queued'
-                  : 'Creating your try-on preview',
+                  : 'Creating and checking your try-on preview',
               key: const Key('tryon-progress'),
             ),
             const SizedBox(height: 12),

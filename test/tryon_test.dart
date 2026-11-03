@@ -309,7 +309,7 @@ void main() {
       repo.current = repo.state(TryOnState.running);
       await tester.pump(const Duration(seconds: 2));
       await tester.pump();
-      expect(find.text('Creating your try-on preview'), findsOneWidget);
+      expect(find.text('Creating and checking your try-on preview'), findsOneWidget);
       repo.current = repo.state(TryOnState.succeeded);
       await tester.pump(const Duration(seconds: 2));
       await tester.pump();

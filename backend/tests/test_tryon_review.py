@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from provider import (review_tryon, TRYON_REVIEW_FIELDS, TRYON_REVIEW_VERSION,
-    TRYON_REVIEW_OUTPUT_TOKENS, TRYON_OUTPUT_TOKENS, TRYON_PROMPT_BYTE_LIMIT)
+    TRYON_REVIEW_MODEL, TRYON_REVIEW_OUTPUT_TOKENS, TRYON_OUTPUT_TOKENS,
+    TRYON_PROMPT_BYTE_LIMIT, TRYON_REVIEW_INPUT_BYTE_LIMIT)
 from safety import ServiceError, TRYON_RESERVATION
 from test_tryon_provider import png, Credentials, Response, Transport
 
@@ -36,12 +37,16 @@ def test_only_complete_explicit_pass_is_publishable(monkeypatch):
     url, request = transport.calls[0]
     assert '/locations/us/' in url and request['allow_redirects'] is False
     config = request['json']['generationConfig']
-    assert config['maxOutputTokens'] == 96 and config['responseModalities'] == ['TEXT']
+    assert TRYON_REVIEW_MODEL in url
+    assert config['maxOutputTokens'] == 1024 and config['responseModalities'] == ['TEXT']
+    assert config['responseMimeType'] == 'application/json'
+    assert config['mediaResolution'] == 'MEDIA_RESOLUTION_HIGH'
+    assert set(config['responseSchema']['required']) == set(TRYON_REVIEW_FIELDS)
     assert config['candidateCount'] == 1 and 'tools' not in request['json']
     parts = request['json']['contents'][0]['parts']
     assert len([p for p in parts if 'inlineData' in p]) == 3
     assert 'invented slit' in parts[0]['text'] and 'untrusted evidence' in parts[0]['text']
-    assert sum(len(p.get('text', '').encode()) for p in parts) <= TRYON_PROMPT_BYTE_LIMIT
+    assert sum(len(p.get('text', '').encode()) for p in parts) + len(json.dumps(config['responseSchema']).encode()) <= TRYON_REVIEW_INPUT_BYTE_LIMIT
 
 
 @pytest.mark.parametrize('field', TRYON_REVIEW_FIELDS)
@@ -74,6 +79,13 @@ def test_rating_overrides_otherwise_positive_verdict(monkeypatch):
     assert error.value.code == 'preview_rejected'
 
 
+def test_provider_signature_metadata_does_not_make_valid_json_unreadable(monkeypatch):
+    body = response(dict.fromkeys(TRYON_REVIEW_FIELDS, True))
+    body['candidates'][0]['content']['parts'][0]['thoughtSignature'] = 'synthetic'
+    call, _, _ = invoke(monkeypatch, body)
+    assert call() == TRYON_REVIEW_VERSION
+
+
 def test_cancelled_or_unreserved_review_never_dispatches(monkeypatch):
     call, transport, _ = invoke(monkeypatch, {}, reject=True)
     with pytest.raises(ServiceError): call()
@@ -89,5 +101,5 @@ def test_outage_is_sanitized_and_never_retried(monkeypatch):
 
 def test_combined_generation_and_review_fit_original_reservation():
     generation = (2*1120+TRYON_PROMPT_BYTE_LIMIT)*.55 + TRYON_OUTPUT_TOKENS*66
-    review = (3*1120+TRYON_PROMPT_BYTE_LIMIT)*.55 + TRYON_REVIEW_OUTPUT_TOKENS*66
-    assert math.ceil(generation+review) == 146837 < TRYON_RESERVATION == 150000
+    review = (3*1120+TRYON_REVIEW_INPUT_BYTE_LIMIT)*.275 + TRYON_REVIEW_OUTPUT_TOKENS*1.65
+    assert math.ceil(generation+review) == 141267 < TRYON_RESERVATION == 150000
