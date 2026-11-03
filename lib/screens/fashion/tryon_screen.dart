@@ -426,7 +426,9 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
             ExpansionTile(
               key: const Key('tryon-compare-original'),
               title: const Text('Compare original garment'),
-              subtitle: const Text('Check the hem and sleeve lengths'),
+              subtitle: const Text(
+                'Check coverage, openings, hem and sleeve lengths',
+              ),
               children: [
                 SizedBox(
                   height: 240,
@@ -539,7 +541,7 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
                     ? null
                     : (value) => setState(() => consent = value!),
                 title: const Text(
-                  'Send these selected photos to Google Vertex AI to generate this private preview.',
+                  'Send these selected photos to Google Vertex AI to generate and check this private preview.',
                 ),
               ),
               if (error != null)

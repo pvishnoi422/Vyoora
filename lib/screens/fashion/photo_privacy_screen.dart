@@ -25,7 +25,7 @@ class PhotoPrivacyScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         const Text(
-          'When you explicitly choose Generate, Vyoora sends the selected adult reference photo and garment to Google’s Gemini image model on Google Cloud in the United States. No fashion photo is sent to Vercel or a social network by this flow. AI output may change details and is not a fit or sizing guarantee.',
+          'When you explicitly choose Generate, Vyoora sends the selected adult reference photo and garment to Google’s Gemini image model on Google Cloud in the United States. A separate request to the same provider compares the generated image with those photos for garment coverage and safety before it can be shown or saved. Failed or uncertain checks withhold the image. Automated checks can miss defects; this is not a safety, fit or sizing guarantee. No fashion photo is sent to Vercel or a social network by this flow.',
         ),
         const SizedBox(height: 16),
         const Text(

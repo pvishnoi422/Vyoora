@@ -96,6 +96,9 @@ class _LooksState extends State<_Looks> {
         const Text(
           'Your private saved previews stay for 30 days from saving, unless you delete them or their reference photo first.',
         ),
+        const Text(
+          'Older previews without the current coverage and safety check are withheld. Automated checks can still miss defects.',
+        ),
         if (loading) const LinearProgressIndicator(),
         if (error != null) ...[
           Text(error!, key: const Key('looks-error')),

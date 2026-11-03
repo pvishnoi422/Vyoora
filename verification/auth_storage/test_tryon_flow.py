@@ -15,6 +15,7 @@ from tryon_media import TryOnMedia, CONSENT_VERSION
 from safety import TryOnGuard, ServiceError, TRYON_CONTROL_COLLECTION, TRYON_JOB_COLLECTION
 from saved_looks import SavedLooks
 from fake_bucket import FakeBucket
+from provider import TRYON_REVIEW_VERSION
 
 pytestmark=pytest.mark.skipif(not os.environ.get('FIRESTORE_EMULATOR_HOST'),reason='Isolated Firestore emulator required')
 
@@ -78,7 +79,10 @@ def flow(setup,request):
     calls=[]
     def provider(person,garment,**kw):kw['guard'].start_attempt(kw['job_key']);calls.append((person,garment));return output(),'image/png'
     looks=SavedLooks(bucket if request.param=='gcs' else FakeBucket(), clock=lambda:now[0])
-    service=TryOnService(g,media,wardrobe,None,'demo-vyoora',provider=provider,looks=looks)
+    def reviewer(person, garment, preview, **kw):
+        kw['guard'].start_review_attempt(kw['job_key'])
+        return TRYON_REVIEW_VERSION
+    service=TryOnService(g,media,wardrobe,None,'demo-vyoora',provider=provider,looks=looks,reviewer=reviewer)
     app=create_wardrobe_app(identity,wardrobe,tryon=service);api=app.test_client()
     yield api,people,service,now,calls
     if request.param=='gcs':
@@ -209,3 +213,41 @@ def test_every_tryon_route_requires_verified_auth(flow):
         ('post','/v2/try-on/jobs'),('get','/v2/try-on/jobs/x'),('delete','/v2/try-on/jobs/x'),('get','/v2/try-on/jobs/x/image')]:
         assert getattr(api,method)(path).status_code==401
         assert getattr(api,method)(path,headers=headers(p['unverified'])).status_code==403
+
+
+@pytest.mark.parametrize('code', ['preview_rejected', 'preview_review_unavailable'])
+def test_review_failure_never_stores_serves_or_saves_output(flow, code):
+    api,p,s,now,calls=flow; a,g,r=inputs(flow); submit(api,a,g,r)
+    def failed_review(*args, **kwargs): raise ServiceError(code, 'Withheld', 422)
+    s.reviewer=failed_review
+    s.process_one(s.guard.job_ref(a['uid'],'job').id)
+    job=api.get('/v2/try-on/jobs/job',headers=headers(a)).json['job']
+    assert job['status']=='failed' and job['errorCode']==code and not job['aiGenerated']
+    assert api.get('/v2/try-on/jobs/job/image',headers=headers(a)).status_code==409
+    assert api.post('/v2/saved-looks',headers=headers(a),json={
+        'jobId':'job','title':'Rejected','consentVersion':'saved-looks-v1'}).status_code==409
+    with pytest.raises(AccessDenied): s.media.preview(a['uid'],'job')
+    assert s.guard.availability(a['uid'])['remainingToday']==2 and len(calls)==1
+    s.process_one(s.guard.job_ref(a['uid'],'job').id)
+    assert len(calls)==1
+
+
+def test_legacy_unreviewed_preview_is_withheld_without_deleting_photos(flow):
+    api,p,s,now,calls=flow; a,g,r=inputs(flow); submit(api,a,g,r)
+    s.process_one(s.guard.job_ref(a['uid'],'job').id)
+    s.guard.job_ref(a['uid'],'job').update({'reviewVersion':None})
+    job=api.get('/v2/try-on/jobs/job',headers=headers(a)).json['job']
+    assert job['status']=='failed' and job['errorCode']=='preview_review_required'
+    assert api.get('/v2/try-on/jobs/job/image',headers=headers(a)).status_code==409
+    assert api.get('/v2/reference-photos/'+r+'/image',headers=headers(a)).status_code==200
+
+
+def test_cancellation_during_review_discards_approved_result(flow):
+    api,p,s,now,calls=flow; a,g,r=inputs(flow); submit(api,a,g,r)
+    def cancelled_review(*args, **kwargs):
+        s.cancel(a['uid'],'job')
+        return TRYON_REVIEW_VERSION
+    s.reviewer=cancelled_review
+    s.process_one(s.guard.job_ref(a['uid'],'job').id)
+    assert s.guard.get(a['uid'],'job')['status']=='cancelled'
+    with pytest.raises(AccessDenied): s.media.preview(a['uid'],'job')

@@ -183,3 +183,36 @@ def test_database_outage_has_no_local_budget_fallback():
         def transaction(self, **kwargs): raise RuntimeError('offline')
     with pytest.raises(ServiceError) as error: TryOnGuard(Broken()).admit('alice', 'request', 'shirt', 'photo')
     assert error.value.code == 'controls_unavailable'
+
+
+def test_review_dispatch_is_once_only_and_keeps_original_budget(guard):
+    g,now=guard
+    g.admit('actor-0','review','shirt','photo'); key=g.job_ref('actor-0','review').id
+    g.claim(key)
+    with pytest.raises(ServiceError): g.start_review_attempt(key)
+    g.start_attempt(key); g.start_review_attempt(key)
+    with pytest.raises(ServiceError): g.start_review_attempt(key)
+    assert g.controls.document('day_20261028').get().to_dict()['reserved_micro_usd']==TRYON_RESERVATION
+
+
+def test_revocation_between_generation_and_review_stops_dispatch(guard):
+    g,now=guard
+    g.admit('actor-0','review','shirt','photo'); key=g.job_ref('actor-0','review').id
+    g.claim(key); g.start_attempt(key); g.revoke_reference('actor-0','photo')
+    with pytest.raises(ServiceError): g.start_review_attempt(key)
+    assert g.get('actor-0','review').get('reviewAttempted') is not True
+
+
+def test_concurrent_reviews_dispatch_once_and_cannot_spend_next_day(guard):
+    g,now=guard
+    g.admit('actor-0','review','shirt','photo'); key=g.job_ref('actor-0','review').id
+    g.claim(key); g.start_attempt(key)
+    def attempt(_):
+        try: g.start_review_attempt(key); return True
+        except ServiceError: return False
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        assert sum(pool.map(attempt,range(4)))==1
+    g.finish('actor-0','review','failed','preview_rejected')
+    g.admit('actor-0','late-review','shirt','photo'); key=g.job_ref('actor-0','late-review').id
+    g.claim(key); g.start_attempt(key); now[0]+=timedelta(days=1)
+    with pytest.raises(ServiceError): g.start_review_attempt(key)

@@ -4,6 +4,7 @@ import json
 from google.api_core.exceptions import NotFound, PreconditionFailed
 from media_security import AccessDenied
 from tryon_media import TryOnMedia
+from provider import TRYON_REVIEW_VERSION
 
 
 class SavedLooks:
@@ -22,6 +23,8 @@ class SavedLooks:
             raise AccessDenied('not_found', 404)
         if self.clock() >= datetime.fromisoformat(record['expiresAt']):
             raise AccessDenied('not_found', 404)
+        if record.get('reviewVersion') != TRYON_REVIEW_VERSION:
+            raise AccessDenied('preview_review_required', 409)
         return record
 
     def get(self, uid, item_id, *, image=False):
@@ -45,9 +48,11 @@ class SavedLooks:
         return records, iterator.next_page_token
 
     def save(self, uid, job, title, data, mime):
+        if job.get('reviewVersion') != TRYON_REVIEW_VERSION:
+            raise AccessDenied('preview_review_required', 409)
         now = self.clock(); expires = now + timedelta(days=30)
         text = lambda d: d.isoformat().replace('+00:00', 'Z')
-        record = dict(schemaVersion=1, id=job['id'], ownerId=uid, title=title,
+        record = dict(schemaVersion=1, id=job['id'], ownerId=uid, title=title, reviewVersion=TRYON_REVIEW_VERSION,
             items=[dict(ownerId=uid, id=job['garmentId'])],
             referencePhoto=dict(ownerId=uid, id=job['referenceId']),
             preview=dict(ownerId=uid, imageId=job['id'], kind='savedLook', expiresAt=text(expires)),

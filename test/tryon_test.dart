@@ -381,6 +381,27 @@ void main() {
       await dispose(tester);
     },
   );
+  for (final code in [
+    'preview_rejected',
+    'preview_review_unavailable',
+    'preview_review_required',
+  ]) {
+    testWidgets('$code withholds image and save actions', (tester) async {
+      final repo = Repo();
+      repo.photos = [repo.photo()];
+      await mount(tester, repo);
+      await generate(tester);
+      repo.current = repo.state(TryOnState.failed, error: code);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+      expect(find.byKey(const Key('tryon-failed')), findsOneWidget);
+      expect(find.textContaining('Preview withheld'), findsOneWidget);
+      expect(find.byKey(const Key('tryon-success')), findsNothing);
+      expect(find.text('Save to My Looks'), findsNothing);
+      expect(repo.ids.length, 1);
+      await dispose(tester);
+    });
+  }
   testWidgets(
     'known quota refusal unlocks selection and disables a new generation',
     (tester) async {

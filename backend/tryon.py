@@ -5,22 +5,26 @@ from flask import jsonify, request, Response
 from media_security import AccessDenied
 from safety import ServiceError
 from tryon_media import CONSENT_VERSION
-from provider import virtual_tryon
+from provider import virtual_tryon, review_tryon, TRYON_REVIEW_VERSION
 
 SUPPORTED_CATEGORIES = {'top', 'bottom', 'dress', 'outerwear'}
 
 
 class TryOnService:
-    def __init__(self, guard, media, wardrobe, credentials, project, provider=virtual_tryon, looks=None):
+    def __init__(self, guard, media, wardrobe, credentials, project, provider=virtual_tryon, looks=None, reviewer=review_tryon):
         self.guard, self.media, self.wardrobe = guard, media, wardrobe
         self.credentials, self.project, self.provider = credentials, project, provider
         self.looks = looks
+        self.reviewer = reviewer
         self.stop = threading.Event()
 
     @staticmethod
     def public(job):
-        return {k: job.get(k) for k in ('id', 'ownerId', 'garmentId', 'referenceId', 'status',
+        result = {k: job.get(k) for k in ('id', 'ownerId', 'garmentId', 'referenceId', 'status',
             'createdAt', 'expiresAt', 'errorCode')} | {'aiGenerated': job.get('status') == 'succeeded'}
+        if job.get('status') == 'succeeded' and job.get('reviewVersion') != TRYON_REVIEW_VERSION:
+            result.update(status='failed', errorCode='preview_review_required', aiGenerated=False)
+        return result
 
     def reference(self, uid, ref_id, *, data=False):
         self.guard.check_account_access(uid)
@@ -73,6 +77,8 @@ class TryOnService:
     def preview(self, uid, job_id):
         job = self.guard.get(uid, job_id)
         if job['status'] != 'succeeded': raise ServiceError('preview_unavailable', 'This preview is not available.', 409)
+        if job.get('reviewVersion') != TRYON_REVIEW_VERSION:
+            raise ServiceError('preview_review_required', 'This older preview has not passed the current checks.', 409)
         self.reference(uid, job['referenceId'])
         return self.media.preview(uid, job_id)
 
@@ -118,8 +124,14 @@ class TryOnService:
             # status always wins; do not publish that image or refund the attempt.
             self.reference(uid, job['referenceId'])
             if self.guard.get(uid, job_id)['status'] != 'running': return
+            version = self.reviewer(person, garment, data, credentials=self.credentials, guard=self.guard,
+                job_key=key, project=self.project)
+            if version != TRYON_REVIEW_VERSION:
+                raise ServiceError('preview_review_unavailable', 'This preview could not be checked.', 502)
+            self.reference(uid, job['referenceId'])
+            if self.guard.get(uid, job_id)['status'] != 'running': return
             self.media.put_preview(uid, job_id, job['referenceId'], data, mime, reference['expiresAt'])
-            if not self.guard.finish(uid, job_id, 'succeeded'):
+            if not self.guard.finish(uid, job_id, 'succeeded', review_version=version):
                 self.media.delete_preview(uid, job_id)
         except Exception as error:
             code = error.code if isinstance(error, (ServiceError, AccessDenied)) else 'generation_failed'

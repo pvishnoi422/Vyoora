@@ -36,6 +36,10 @@ class TryOnJob {
     );
   }
   String get failureMessage => switch (errorCode) {
+    'preview_rejected' =>
+      'Preview withheld: the image may change garment coverage or contain unsafe details.',
+    'preview_review_unavailable' || 'preview_review_required' =>
+      'Preview withheld because its garment coverage and safety could not be checked.',
     'generation_blocked' =>
       'These photos could not be used. Try different photos.',
     'reference_expired' || 'not_found' =>

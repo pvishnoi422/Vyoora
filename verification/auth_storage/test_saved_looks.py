@@ -85,3 +85,18 @@ def test_saved_routes_require_verified_account(flow):
     for method,path in [('get','/v2/saved-looks'),('post','/v2/saved-looks'),('get','/v2/saved-looks/x'),('delete','/v2/saved-looks/x'),('get','/v2/saved-looks/x/image')]:
         assert getattr(api,method)(path).status_code==401
         assert getattr(api,method)(path,headers=headers(people['unverified'])).status_code==403
+
+
+def test_legacy_saved_image_is_withheld_but_can_still_be_deleted(flow):
+    import json
+    api, people, service, now, calls = flow; a, reference = generate(flow)
+    assert save(api,a).status_code == 201
+    blob=service.looks.blob(a['uid'],'job'); blob.reload()
+    metadata=blob.metadata.copy(); record=json.loads(metadata['savedLookRecord'])
+    record.pop('reviewVersion'); metadata['savedLookRecord']=json.dumps(record)
+    # Simulate an older persisted record without invoking an AI provider.
+    data=blob.download_as_bytes(); blob.metadata=metadata
+    blob.upload_from_string(data,content_type='image/png')
+    assert api.get('/v2/saved-looks/job/image',headers=headers(a)).status_code==409
+    assert api.get('/v2/saved-looks',headers=headers(a)).json['items']==[]
+    assert api.delete('/v2/saved-looks/job',headers=headers(a)).status_code==204

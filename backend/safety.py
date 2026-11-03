@@ -91,7 +91,8 @@ class FirestoreGuard:
 
 
 # Bounded Gemini 3.1 Flash Image edit: reserve $0.15 for <=$0.137527
-# worst-case input/output tokens, one candidate and no tools/retries.
+# worst-case generation plus <=$0.009311 coverage review, one candidate per
+# stage and no tools/retries. Combined ceiling $0.146837 < $0.15.
 # See provider.py for the reviewed US price and fixed token/image ceilings.
 # This ledger NEVER uses skincare AI counters or rewrites older reservations.
 TRYON_RESERVATION = 150_000
@@ -296,7 +297,26 @@ class TryOnGuard:
             transaction.update(ref, {'attempted': True, 'attemptedAt': now.isoformat().replace('+00:00', 'Z')})
         start(self.client.transaction(max_attempts=8))
 
-    def finish(self, uid, job_id, status, error=None):
+    def start_review_attempt(self, key):
+        from google.cloud import firestore
+        ref = self.jobs.document(key)
+        @firestore.transactional
+        def start(transaction):
+            job = ref.get(transaction=transaction).to_dict() or {}
+            if (job.get('status') != 'running' or job.get('attempted') is not True or
+                job.get('reviewAttempted') is True or job.get('reservedMicroUsd') != TRYON_RESERVATION):
+                raise ServiceError('preview_review_unavailable', 'This preview cannot be checked.', 409)
+            if job.get('reservedDay') != self.clock().strftime('%Y%m%d'):
+                raise ServiceError('generation_expired', 'This request expired before review.', 410)
+            self.check_reference(job['ownerId'], job['referenceId'], transaction)
+            policy = self.controls.document('policy').get(transaction=transaction).to_dict() or {}
+            member = self.controls.document('member_'+self.actor(job['ownerId'])).get(transaction=transaction).to_dict() or {}
+            if policy.get('enabled') is not True or member.get('enabled') is not True:
+                raise ServiceError('tryon_disabled', 'Try-on testing is paused.')
+            transaction.update(ref, {'reviewAttempted': True})
+        start(self.client.transaction(max_attempts=8))
+
+    def finish(self, uid, job_id, status, error=None, *, review_version=None):
         from google.cloud import firestore
         ref = self.job_ref(uid, job_id); actor_ref = self.controls.document('actor_'+self.actor(uid))
         @firestore.transactional
@@ -308,8 +328,11 @@ class TryOnGuard:
             if status != 'cancelled' and job.get('status') not in {'queued', 'running'}: return False
             if status == 'succeeded':
                 if job.get('status') != 'running': return False
+                if not review_version or job.get('reviewAttempted') is not True:
+                    raise ServiceError('preview_review_required', 'A completed review is required.', 409)
                 self.check_reference(uid, job['referenceId'], transaction)
             transaction.update(ref, {'status': status, 'errorCode': error,
+                'reviewVersion': review_version if status == 'succeeded' else None,
                 'completedAt': self.clock().isoformat().replace('+00:00', 'Z')})
             if actor.get('activeJobId') == job_id:
                 transaction.update(actor_ref, {'activeJobId': None})
