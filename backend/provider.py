@@ -79,6 +79,13 @@ GARMENT_PRESERVATION_PROMPT = (
     "Replace the existing garment completely; do not inherit a cropped hem or tucked-in styling from image 1. "
     "Do not shorten, crop, roll up, tuck in, stretch or redesign the product. "
     "A full-length sweater must remain full-length and cover the waist; never turn it into a crop top. "
+    "Image 2 alone determines garment construction: preserve skirt length, coverage, fullness, panels, seams, "
+    "closures and any existing openings. Never add a slit, split, cutout, opening or exposed leg where image 2 "
+    "shows continuous fabric. Do not carry over openings from the person's original outfit. "
+    "Preserve visible accessories from image 1, including a scarf around the neck and a purse or handbag, "
+    "with their original shape, placement and straps. Replace only the clothing being tried on; do not remove "
+    "or redesign those accessories or mistake a scarf for part of the replacement garment. "
+    "Do not copy a product model's accessories from image 2 onto the person. "
     "Preserve the person's identity, body shape, pose, original camera framing and background. "
     "Keep the complete garment visible. Output one edited photograph only."
 )

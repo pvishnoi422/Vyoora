@@ -54,6 +54,14 @@ def test_preservation_prompt_full_inputs_and_boundaries(monkeypatch):
     assert 'tools' not in body
     parts=body['contents'][0]['parts'];assert parts[0]['text']==GARMENT_PRESERVATION_PROMPT
     assert 'Do not shorten, crop' in parts[0]['text'] and 'do not inherit a cropped hem' in parts[0]['text']
+    # Verify these constraints reach the actual bounded two-image request.
+    prompt = parts[0]['text']
+    assert 'Image 2 alone determines garment construction' in prompt
+    assert 'Never add a slit, split, cutout, opening or exposed leg' in prompt
+    assert "Do not carry over openings from the person's original outfit" in prompt
+    assert 'Preserve visible accessories from image 1' in prompt
+    assert 'a scarf around the neck and a purse or handbag' in prompt
+    assert "Do not copy a product model's accessories from image 2" in prompt
     images=[p['inlineData'] for p in parts if 'inlineData' in p]
     assert len(images)==2 and all(base64.b64decode(p['data'])==data for p in images)
     assert sum(len(p.get('text','').encode()) for p in parts)<=TRYON_PROMPT_BYTE_LIMIT
