@@ -104,7 +104,7 @@ TRYON_CONTROL_COLLECTION = 'vyoora_tryon_v2'
 TRYON_JOB_COLLECTION = 'vyoora_tryon_jobs_v2'
 
 
-def tryon_updates(documents, now):
+def tryon_updates(documents, now, *, personal_testing=False):
     policy = documents['policy']
     if policy.get('enabled') is not True:
         raise ServiceError('tryon_disabled', 'Try-on testing is currently paused.', 503)
@@ -119,12 +119,12 @@ def tryon_updates(documents, now):
         reserved = documents[period].get('reserved_micro_usd', 0)
         if type(reserved) is not int or reserved < 0:
             raise ServiceError('controls_unavailable', 'Try-on controls are unavailable.')
-        if reserved + TRYON_RESERVATION > cap:
+        if not personal_testing and reserved + TRYON_RESERVATION > cap:
             raise ServiceError('tryon_budget_exhausted', 'The separate try-on testing budget has been reached.', 429)
     used = documents['user_day'].get('requests', 0)
     if type(used) is not int or used < 0:
         raise ServiceError('controls_unavailable', 'Try-on controls are unavailable.')
-    if used >= per_user:
+    if not personal_testing and used >= per_user:
         raise ServiceError('tryon_quota_exhausted', 'Your daily try-on limit has been reached.', 429)
     if documents['actor'].get('activeJobId'):
         raise ServiceError('generation_in_progress', 'You already have a generation in progress.', 409)
@@ -143,7 +143,13 @@ class TryOnGuard:
     No automatic provider retry or refund after cancellation, failure or timeout.
     Expired/running jobs are failed conservatively instead of re-dispatched.
     """
-    def __init__(self, client, clock=None):
+    def __init__(self, client, clock=None, *, personal_test_users=()):
+        self.personal_test_users = frozenset(personal_test_users)
+        host = os.environ.get('FIREBASE_AUTH_EMULATOR_HOST', '').split(':')[0]
+        if self.personal_test_users and (os.environ.get('K_SERVICE') or
+            host not in {'127.0.0.1', 'localhost'} or
+            not self.personal_test_users <= {'local-alice'}):
+            raise RuntimeError('Personal unlimited testing is only allowed for the local Alice demo account')
         self.client = client
         self.controls = client.collection(TRYON_CONTROL_COLLECTION)
         self.jobs = client.collection(TRYON_JOB_COLLECTION)
@@ -237,7 +243,7 @@ class TryOnGuard:
                 return old
             consent = self.check_reference(uid, reference_id, transaction)
             documents = {k: r.get(transaction=transaction).to_dict() or {} for k, r in refs.items()}
-            updates = tryon_updates(documents, now)
+            updates = tryon_updates(documents, now, personal_testing=uid in self.personal_test_users)
             text = now.isoformat().replace('+00:00', 'Z')
             job = dict(id=job_id, ownerId=uid, garmentId=garment_id, referenceId=reference_id,
                        status='queued', createdAt=text, consentedAt=text, consentVersion='google-tryon-v1',
@@ -361,5 +367,6 @@ class TryOnGuard:
         member = self.controls.document('member_'+actor).get().to_dict() or {}
         count = self.controls.document('user_'+actor+'_'+now.strftime('%Y%m%d')).get().to_dict() or {}
         return {'enabled': policy.get('enabled') is True and member.get('enabled') is True,
+                'unlimitedPersonalTesting': uid in self.personal_test_users,
                 'remainingToday': max(0, min(TRYON_PER_USER_DAY, policy.get('per_user_day', 0))-count.get('requests', 0)),
                 'dailyLimit': min(TRYON_PER_USER_DAY, policy.get('per_user_day', 0))}

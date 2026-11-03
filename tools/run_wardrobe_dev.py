@@ -14,7 +14,11 @@ if os.environ.get('K_SERVICE'):
     raise RuntimeError('Local development only')
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--try-on', action='store_true', help='Enable the approved private try-on test and durable worker')
+parser.add_argument('--unlimited-personal-testing', action='store_true',
+    help='Remove daily count and spending caps for local-alice only; usage is still recorded')
 args = parser.parse_args()
+if args.unlimited_personal_testing and not args.try_on:
+    parser.error('--unlimited-personal-testing requires --try-on')
 if args.try_on and os.environ.get('FIRESTORE_EMULATOR_HOST'):
     raise RuntimeError('Paid testing requires the real shared budget ledger')
 os.environ['FIREBASE_AUTH_EMULATOR_HOST'] = '127.0.0.1:9099'
@@ -53,7 +57,8 @@ if args.try_on:
     from tryon import TryOnService
     from saved_looks import SavedLooks
     os.environ['TRYON_ENABLED'] = 'true'
-    guard = TryOnGuard(firestore.Client(project='vyoora-backend', credentials=cloud_credentials))
+    guard = TryOnGuard(firestore.Client(project='vyoora-backend', credentials=cloud_credentials),
+        personal_test_users={'local-alice'} if args.unlimited_personal_testing else ())
     # Create once; never reset existing budgets, quotas, membership or kill switch.
     try:
         guard.controls.document('policy').create({'enabled': True, 'daily_budget_micro_usd': TRYON_DAY_CAP,

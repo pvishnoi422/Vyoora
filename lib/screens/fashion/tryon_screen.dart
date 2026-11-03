@@ -530,7 +530,9 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
               if (limits != null)
                 Text(
                   limits!.enabled
-                      ? '${limits!.remainingToday} of ${limits!.dailyLimit} generations remaining today. Daily limits reset at 00:00 UTC.'
+                      ? limits!.unlimitedPersonalTesting
+                            ? 'Unlimited personal testing: no daily generation or spending cap. Provider charges still apply.'
+                            : '${limits!.remainingToday} of ${limits!.dailyLimit} generations remaining today. Daily limits reset at 00:00 UTC.'
                       : 'Try-on generation is paused or not enabled for this test account.',
                 ),
               CheckboxListTile(
@@ -563,7 +565,8 @@ class _TryOnExperienceState extends State<_TryOnExperience> {
                         (!uncertain &&
                             (!consent ||
                                 limits?.enabled != true ||
-                                (limits?.remainingToday ?? 0) <= 0))
+                                (limits?.unlimitedPersonalTesting != true &&
+                                    (limits?.remainingToday ?? 0) <= 0)))
                     ? null
                     : generate,
                 icon: const Icon(Icons.auto_awesome),

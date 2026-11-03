@@ -17,8 +17,14 @@ const tryOnCategories = {
 
 class TryOnAvailability {
   final bool enabled;
+  final bool unlimitedPersonalTesting;
   final int remainingToday, dailyLimit;
-  const TryOnAvailability(this.enabled, this.remainingToday, this.dailyLimit);
+  const TryOnAvailability(
+    this.enabled,
+    this.remainingToday,
+    this.dailyLimit, {
+    this.unlimitedPersonalTesting = false,
+  });
 }
 
 class SavedLooksPage {
@@ -99,6 +105,7 @@ class TryOnRepository extends WardrobeRepository {
       data['enabled'] == true,
       data['remainingToday'] as int,
       data['dailyLimit'] as int,
+      unlimitedPersonalTesting: data['unlimitedPersonalTesting'] == true,
     );
   }
 

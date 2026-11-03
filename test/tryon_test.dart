@@ -309,7 +309,10 @@ void main() {
       repo.current = repo.state(TryOnState.running);
       await tester.pump(const Duration(seconds: 2));
       await tester.pump();
-      expect(find.text('Creating and checking your try-on preview'), findsOneWidget);
+      expect(
+        find.text('Creating and checking your try-on preview'),
+        findsOneWidget,
+      );
       repo.current = repo.state(TryOnState.succeeded);
       await tester.pump(const Duration(seconds: 2));
       await tester.pump();
@@ -402,6 +405,23 @@ void main() {
       await dispose(tester);
     });
   }
+  testWidgets('personal testing can generate with an exhausted daily counter', (
+    tester,
+  ) async {
+    final repo = Repo();
+    repo.photos = [repo.photo()];
+    repo.availabilityValue = const TryOnAvailability(
+      true,
+      0,
+      3,
+      unlimitedPersonalTesting: true,
+    );
+    await mount(tester, repo);
+    await generate(tester);
+    expect(repo.ids.length, 1);
+    expect(find.text('Your preview is queued'), findsOneWidget);
+    await dispose(tester);
+  });
   testWidgets(
     'known quota refusal unlocks selection and disables a new generation',
     (tester) async {

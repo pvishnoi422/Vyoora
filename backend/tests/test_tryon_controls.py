@@ -35,6 +35,47 @@ def test_tryon_limits_are_separate_and_fail_closed():
         with pytest.raises(ServiceError): tryon_updates(altered, NOW)
 
 
+def test_personal_testing_removes_only_count_and_spending_caps():
+    d=documents()
+    d['day']={'reserved_micro_usd':5_000_000,'requests':30}
+    d['month']={'reserved_micro_usd':50_000_000,'requests':300}
+    d['user_day']={'requests':1000}
+    updates=tryon_updates(d,NOW,personal_testing=True)
+    assert updates['day']['reserved_micro_usd']==5_150_000
+    assert updates['month']['reserved_micro_usd']==50_150_000
+    assert updates['user_day']['requests']==1001
+    with pytest.raises(ServiceError): tryon_updates(d,NOW)
+    for key,value in [('member',{'enabled':False}),('policy',{'enabled':False}),
+                      ('actor',{'activeJobId':'existing'})]:
+        changed=copy.deepcopy(d);changed[key]=value
+        with pytest.raises(ServiceError): tryon_updates(changed,NOW,personal_testing=True)
+
+
+def test_personal_testing_cannot_be_enabled_in_production_or_for_other_users(monkeypatch):
+    monkeypatch.setenv('FIREBASE_AUTH_EMULATOR_HOST','127.0.0.1:9099')
+    monkeypatch.setenv('K_SERVICE','production')
+    with pytest.raises(RuntimeError): TryOnGuard(None,personal_test_users={'local-alice'})
+    monkeypatch.delenv('K_SERVICE')
+    with pytest.raises(RuntimeError): TryOnGuard(None,personal_test_users={'local-bob'})
+    monkeypatch.delenv('FIREBASE_AUTH_EMULATOR_HOST')
+    with pytest.raises(RuntimeError): TryOnGuard(None,personal_test_users={'local-alice'})
+
+
+def test_personal_account_override_is_scoped_and_preserves_counters(guard,monkeypatch):
+    old,now=guard
+    monkeypatch.setenv('FIREBASE_AUTH_EMULATOR_HOST','127.0.0.1:9099')
+    g=TryOnGuard(old.client,clock=lambda:now[0],personal_test_users={'local-alice'})
+    g.controls.document('member_'+g.actor('local-alice')).set({'enabled':True})
+    g.grant_reference('local-alice',{'id':'photo','expiresAt':(now[0]+timedelta(days=1)).isoformat(),
+        'consentVersion':'google-tryon-v1'})
+    g.controls.document('day_20261028').set({'reserved_micro_usd':1_000_000})
+    assert g.admit('local-alice','personal-job','shirt','photo')['status']=='queued'
+    assert g.controls.document('day_20261028').get().to_dict()['reserved_micro_usd']==1_150_000
+    assert g.availability('local-alice')['unlimitedPersonalTesting'] is True
+    assert g.availability('actor-0')['unlimitedPersonalTesting'] is False
+    with pytest.raises(ServiceError): g.admit('actor-0','limited-job','shirt','photo')
+
+
 @pytest.fixture
 def guard():
     if not os.environ.get('FIRESTORE_EMULATOR_HOST'): pytest.skip('Firestore emulator required')
