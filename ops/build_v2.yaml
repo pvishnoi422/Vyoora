@@ -1,0 +1,23 @@
+# Builds only the private V2 runtime. Does not deploy a service or modify V11.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, -f, backend/Dockerfile.wardrobe, -t, '${_IMAGE}', backend]
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - run
+      - --rm
+      - --entrypoint
+      - python
+      - '${_IMAGE}'
+      - -c
+      - >-
+        from pathlib import Path; import os;
+        assert os.getuid() != 0;
+        assert not list(Path('/app').rglob('.env*'));
+        assert not Path('/app/app.py').exists();
+        import wardrobe_app, tryon_dispatch, provider;
+        assert callable(wardrobe_app.build_app);
+        assert provider.OpenAI is None;
+        assert os.environ.get('TRYON_ENABLED', 'false') == 'false'
+images: ['${_IMAGE}']
+timeout: 1200s
