@@ -46,6 +46,18 @@ class PhotoPrivacyScreen extends StatelessWidget {
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => launchUrl(
+            Uri.parse('https://pvishnoi422.github.io/Vyoora/privacy/'),
+          ),
+          child: const Text('Vyoora privacy policy'),
+        ),
+        TextButton(
+          onPressed: () => launchUrl(
+            Uri.parse('https://pvishnoi422.github.io/Vyoora/support/'),
+          ),
+          child: const Text('Vyoora support'),
+        ),
+        TextButton(
+          onPressed: () => launchUrl(
             Uri.parse(
               'https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/zero-data-retention',
             ),
