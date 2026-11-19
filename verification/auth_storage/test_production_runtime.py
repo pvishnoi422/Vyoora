@@ -79,3 +79,21 @@ def test_disabled_runtime_does_not_reserve_a_generation(configured, monkeypatch)
         guard.admit('owner', 'job-1', 'garment', 'photo')
     assert error.value.code == 'tryon_disabled'
     assert all(call[0] == 'collection' for call in client.mock_calls)
+
+
+@pytest.mark.parametrize('member,code', [({}, 'private_test_required'),
+    ({'enabled': False}, 'private_test_required'),
+    ({'enabled': 'true'}, 'private_test_required'),
+    ({'enabled': True, 'deleting': True}, 'account_deleting'),
+    ({'enabled': True}, None)])
+def test_production_private_media_requires_explicit_enrollment(member, code):
+    from safety import ServiceError
+    client = Mock()
+    client.collection.return_value.document.return_value.get.return_value.to_dict.return_value = member
+    guard = runtime.ProductionTryOnGuard(client)
+    if code:
+        with pytest.raises(ServiceError) as error: guard.check_account_access('owner')
+        assert error.value.code == code
+    else:
+        guard.check_account_access('owner')
+    assert not any(call[0].endswith(('.set', '.update', '.create', '.delete')) for call in client.mock_calls)

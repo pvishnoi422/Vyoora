@@ -12,6 +12,13 @@ from tryon_dispatch import TaskDispatcher, QueuedTryOnService, register_task_rou
 
 
 class ProductionTryOnGuard(TryOnGuard):
+    def check_account_access(self, uid):
+        member = self.controls.document('member_' + self.actor(uid)).get().to_dict() or {}
+        if member.get('deleting'):
+            raise ServiceError('account_deleting', 'Account deletion is pending. Retry Delete account to finish.', 410)
+        if member.get('enabled') is not True:
+            raise ServiceError('private_test_required', 'This account is not enrolled in the private test.', 403)
+
     def admit(self, *args, **kwargs):
         if os.environ.get('TRYON_ENABLED', 'false').lower() != 'true':
             raise ServiceError('tryon_disabled', 'Try-on testing is currently paused.')

@@ -74,6 +74,8 @@ class WardrobeRepository {
             'Choose a top, bottom, dress or outerwear item for try-on.',
           'tryon_not_entitled' =>
             'Try-on is only available to approved test accounts.',
+          'private_test_required' =>
+            'Your account is not enrolled in the private test yet. Contact Vyoora support.',
           'tryon_disabled' => 'Try-on testing is currently paused.',
           'tryon_quota_exhausted' =>
             'Your daily try-on limit has been reached.',

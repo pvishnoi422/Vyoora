@@ -66,3 +66,7 @@ app.*.map.json
 **/firebase-debug.log
 **/firebase-debug.*.log
 **/storage-debug.log
+
+# Local release settings and acceptance data never enter source or build contexts.
+ios/ReleaseConfig.production.json
+.release-work/
