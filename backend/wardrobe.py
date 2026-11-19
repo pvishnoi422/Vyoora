@@ -163,6 +163,7 @@ def create_wardrobe_app(identity, store, *, origins=(), tryon=None):
         if tryon is not None and not allow_deleting: tryon.guard.check_account_access(uid)
         return uid
 
+    @app.get('/health')
     @app.get('/healthz')
     def health():
         return jsonify(status='ok', service='vyoora-wardrobe')

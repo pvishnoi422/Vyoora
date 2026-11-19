@@ -41,6 +41,7 @@ def test_production_factory_wires_all_private_features_without_mutating_the_ledg
         '/v2/saved-looks', '/v2/account', '/internal/try-on'} <= paths
     api = app.test_client()
     assert api.get('/healthz').status_code == 200
+    assert api.get('/health').status_code == 200
     for path in ('/v2/wardrobe', '/v2/reference-photos', '/v2/try-on/jobs', '/v2/saved-looks'):
         assert api.get(path).status_code == 401
     assert api.delete('/v2/account').status_code == 401
