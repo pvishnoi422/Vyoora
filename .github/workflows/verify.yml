@@ -67,6 +67,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: pip install -r verification/auth_storage/requirements.txt
+      - run: pip install pip-audit
+      - run: pip-audit -r backend/requirements.wardrobe.txt
       - run: npm ci --prefix verification/auth_storage --no-audit --no-fund
       - name: Start private job-control emulator
         run: |
